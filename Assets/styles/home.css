@@ -1,0 +1,247 @@
+/* ================================================================
+   Chronos-Traffic home page
+   ================================================================ */
+
+/* Public pages only: hide Streamlit navigation chrome. */
+[data-testid="stSidebar"],[data-testid="collapsedControl"],[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
+
+/* ---------- Top bar ---------- */
+.ct-brand {display:flex;align-items:center;gap:.6rem;font-weight:800;font-size:1.05rem;color:#e9eef6;letter-spacing:.01em;}
+.ct-brand-dot {width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,#f3d381,#3b82f6);box-shadow:0 0 12px rgba(243,211,129,.45);}
+
+/* Sign-in: pill shape and restrained deep red. */
+.st-key-signin button {
+  border-radius:999px !important;
+  background:#7f2837 !important;
+  border:1px solid #b74a5b !important;
+  color:#fff5f5 !important;
+  font-weight:700 !important;
+  min-height:2.5rem;
+  box-shadow:0 5px 18px rgba(127,40,55,.15);
+  transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+.st-key-signin button:hover {
+  background:#a33749 !important;
+  border-color:#ed8290 !important;
+  transform:translateY(-2px);
+  box-shadow:0 9px 22px rgba(163,55,73,.26);
+}
+.st-key-signin button:focus-visible {outline:2px solid #f1a7b1 !important;outline-offset:3px;}
+
+/* ---------- Hero ---------- */
+.ct-hero {text-align:center;padding:2.6rem 0 1.4rem;}
+.ct-eyebrow {color:#94b5db;font-size:.84rem;letter-spacing:.22em;font-weight:750;text-align:center;}
+.ct-title {
+  color:var(--ct-gold-bright);
+  background:linear-gradient(110deg,#b9892d 0%,#f3d381 45%,#d2a044 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  font-size:clamp(2.7rem,6vw,5rem) !important;
+  font-weight:850 !important;
+  line-height:1.12 !important;
+  letter-spacing:-.045em;
+  margin:.9rem auto 1.1rem !important;
+  padding:0 !important;
+  text-align:center;
+}
+/* A div, not a <p>: Streamlit's own <p> margins were pushing it off-centre. */
+.ct-subtitle {
+  color:#d5e0ef;
+  font-size:clamp(1.05rem,2vw,1.28rem);
+  line-height:1.75;
+  max-width:740px;
+  margin:0 auto !important;
+  text-align:center !important;
+}
+
+/* ---------- Dataset picker card ---------- */
+.st-key-dataset_picker {
+  width:100% !important;
+  max-width:640px;
+  margin:.6rem auto 0 !important;
+  align-self:center;
+  box-sizing:border-box;
+  background:linear-gradient(145deg,rgba(31,41,55,.95),rgba(24,33,48,.95));
+  border:1px solid #334155;
+  border-radius:20px;
+  padding:1.05rem 1.2rem .85rem;
+  gap:.65rem;
+  box-shadow:0 14px 34px rgba(0,0,0,.28);
+}
+.ct-picker-title {text-align:left;color:#e1e8f3;font-size:.95rem;font-weight:700;letter-spacing:.01em;padding-bottom:20px;}
+
+.st-key-dataset_picker [data-baseweb="select"] > div {
+  min-height:46px;
+  border-radius:12px !important;
+  background:#111827 !important;
+  border:1px solid #3b4b63 !important;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+.st-key-dataset_picker [data-baseweb="select"] > div:hover {border-color:#5b8fd6 !important;}
+.st-key-dataset_picker [data-baseweb="select"] > div:focus-within {border-color:#3b82f6 !important;box-shadow:0 0 0 3px rgba(59,130,246,.18);}
+
+.st-key-explore button {
+  min-height:46px;
+  border-radius:12px !important;
+  border:none !important;
+  background:linear-gradient(135deg,#3b82f6,#2563eb) !important;
+  color:#ffffff !important;
+  font-weight:700 !important;
+  box-shadow:0 8px 20px rgba(37,99,235,.28);
+  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+}
+.st-key-explore button:hover {transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 12px 26px rgba(37,99,235,.38);}
+
+.ct-picker-meta {display:flex;flex-wrap:wrap;justify-content:center;gap:.35rem .5rem;color:#9fb3cc;font-size:.8rem;}
+.ct-dot {color:#4b5d78;}
+
+/* ---------- Stats strip ---------- */
+.ct-stats {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin:2.2rem 0 .6rem;}
+.ct-stat {background:rgba(31,41,55,.55);border:1px solid var(--ct-border);border-radius:16px;padding:1.05rem 1rem;text-align:center;}
+.ct-stat-value {font-size:clamp(1.4rem,2.4vw,1.9rem);font-weight:800;color:var(--ct-gold-bright);font-variant-numeric:tabular-nums;line-height:1.2;}
+.ct-stat-label {font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:#94b5db;font-weight:750;margin-top:.3rem;}
+.ct-stat-note {font-size:.78rem;color:#9fb0c6;margin-top:.2rem;}
+
+/* ---------- Section headings ---------- */
+.ct-divider {height:1px;background:linear-gradient(90deg,transparent,#D5AE53 45%,#3B82F6 70%,transparent);margin:1.9rem 0 1.6rem;}
+.ct-section-title {font-size:clamp(1.45rem,2.4vw,1.95rem);font-weight:800;color:#f9fafb;letter-spacing:-.02em;margin:0 0 .35rem;}
+.ct-section-intro {color:#b3c0d3;font-size:.98rem;line-height:1.6;margin:0 0 1.3rem;}
+
+/* ---------- Feature cards: grid = equal heights ---------- */
+.ct-feature-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;align-items:stretch;}
+.ct-feature {
+  background:var(--ct-surface);
+  border:1px solid var(--ct-border);
+  border-radius:18px;
+  padding:1.3rem 1.2rem 1.35rem;
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  transition:transform .22s ease,border-color .22s ease,background .22s ease,box-shadow .22s ease;
+}
+.ct-feature::before {
+  content:"";
+  position:absolute;
+  left:0;top:0;right:0;
+  height:3px;
+  background:linear-gradient(90deg,#3b82f6,#d5ab4c);
+  opacity:.55;
+  transition:opacity .22s ease;
+}
+.ct-feature:hover {
+  transform:translateY(-6px);
+  border-color:#6488b9;
+  background:#25344a;
+  box-shadow:0 14px 30px rgba(0,0,0,.26),0 0 0 1px rgba(59,130,246,.08);
+}
+.ct-feature:hover::before {opacity:1;}
+/* Icon and heading on one line; long headings wrap next to the icon. */
+.ct-feature-head {display:flex;align-items:center;gap:.75rem;margin-bottom:.8rem;}
+.ct-feature-icon {
+  flex:0 0 44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  font-size:1.3rem;
+  border-radius:12px;
+  background:rgba(59,130,246,.12);
+  border:1px solid rgba(59,130,246,.25);
+}
+.ct-feature-title {color:#f9fafb;font-size:1.05rem;font-weight:750;line-height:1.3;}
+.ct-feature-text {color:#b9c8da;font-size:.9rem;line-height:1.6;}
+
+/* ---------- How it works ---------- */
+.ct-steps {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1rem;}
+.ct-step {display:flex;gap:.9rem;align-items:flex-start;padding:1.1rem 1.2rem;border-radius:16px;background:rgba(31,41,55,.45);border:1px solid var(--ct-border);}
+.ct-step-num {
+  flex:0 0 34px;
+  height:34px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  color:#111827;
+  background:linear-gradient(135deg,#f3d381,#d2a044);
+}
+.ct-step-title {color:#f3f6fb;font-weight:750;font-size:.98rem;margin-bottom:.25rem;}
+.ct-step-text {color:#aebdd1;font-size:.86rem;line-height:1.55;}
+
+/* ---------- About ---------- */
+.ct-about-grid {display:grid;grid-template-columns:1.7fr 1fr;gap:1.6rem;align-items:center;}
+.ct-about {color:#b9c8da;line-height:1.8;margin-top:.6rem;}
+.ct-tech-card {background:var(--ct-surface);border:1px solid var(--ct-border);border-radius:18px;padding:1.2rem 1.25rem;}
+.ct-tech-label {font-size:.74rem;letter-spacing:.16em;font-weight:750;color:#94b5db;margin-bottom:.8rem;}
+.ct-chips {display:flex;flex-wrap:wrap;gap:.5rem;}
+.ct-chip {padding:.35rem .8rem;border-radius:999px;font-size:.8rem;font-weight:650;color:#dbe7f7;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);}
+
+/* ---------- Footer ---------- */
+.ct-footnote {text-align:center;color:#8498b2;font-size:.8rem;padding-bottom:.5rem;}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1000px) {
+  .ct-stats,.ct-feature-grid {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .ct-steps {grid-template-columns:1fr;}
+  .ct-about-grid {grid-template-columns:1fr;}
+}
+@media (max-width:600px) {
+  .ct-hero {padding:1.8rem 0 1rem;}
+  .ct-stats,.ct-feature-grid {grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .ct-feature,.st-key-signin button,.st-key-explore button {transition:none !important;}
+  .ct-feature:hover,.st-key-signin button:hover,.st-key-explore button:hover {transform:none !important;}
+}
+
+/* ================================================================
+   Entrance animations
+   Top of page: components rise in one after another on load.
+   Lower sections: reveal as you scroll to them (Chrome/Edge),
+   or simply on load in browsers without scroll-driven animations.
+   "backwards" fill = the animation never blocks the hover effects afterwards.
+   ================================================================ */
+@keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
+@keyframes ct-pop {from {opacity:0;transform:scale(.94);}}
+@keyframes ct-fade {from {opacity:0;}}
+
+.ct-brand,.st-key-signin,.ct-eyebrow,.ct-title,.ct-subtitle,.st-key-dataset_picker,
+.ct-stat,.ct-feature,.ct-step,.ct-about-grid > * {
+  animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
+}
+.ct-brand {animation-name:ct-fade;}
+.st-key-signin {animation-name:ct-fade;animation-delay:.05s;}
+.ct-eyebrow {animation-delay:.1s;}
+.ct-title {animation-name:ct-pop;animation-duration:.8s;animation-delay:.18s;}
+.ct-subtitle {animation-delay:.32s;}
+.st-key-dataset_picker {animation-delay:.45s;}
+.ct-stat:nth-child(1) {animation-delay:.58s;}
+.ct-stat:nth-child(2) {animation-delay:.66s;}
+.ct-stat:nth-child(3) {animation-delay:.74s;}
+.ct-stat:nth-child(4) {animation-delay:.82s;}
+.ct-feature:nth-child(1) {animation-delay:.9s;}
+.ct-feature:nth-child(2) {animation-delay:.98s;}
+.ct-feature:nth-child(3) {animation-delay:1.06s;}
+.ct-feature:nth-child(4) {animation-delay:1.14s;}
+.ct-step:nth-child(1) {animation-delay:1.2s;}
+.ct-step:nth-child(2) {animation-delay:1.28s;}
+.ct-step:nth-child(3) {animation-delay:1.36s;}
+.ct-about-grid > *:nth-child(1) {animation-delay:1.4s;}
+.ct-about-grid > *:nth-child(2) {animation-delay:1.5s;}
+
+/* Scroll reveal where supported: lower sections animate as they enter the screen. */
+@supports (animation-timeline: view()) {
+  .ct-feature,.ct-step,.ct-about-grid > * {
+    animation:ct-up linear backwards;
+    animation-timeline:view();
+    animation-range:entry 0% cover 28%;
+  }
+  .ct-feature:nth-child(2),.ct-step:nth-child(2),.ct-about-grid > *:nth-child(2) {animation-range:entry 6% cover 33%;}
+  .ct-feature:nth-child(3),.ct-step:nth-child(3) {animation-range:entry 12% cover 38%;}
+  .ct-feature:nth-child(4) {animation-range:entry 18% cover 43%;}
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .ct-brand,.st-key-signin,.ct-eyebrow,.ct-title,.ct-subtitle,.st-key-dataset_picker,
+  .ct-stat,.ct-feature,.ct-step,.ct-about-grid > * {animation:none !important;}
+}

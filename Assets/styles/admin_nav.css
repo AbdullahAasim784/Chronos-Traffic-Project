@@ -1,0 +1,44 @@
+/* ================================================================
+   Admin sidebar (loaded by utils/admin_nav.py on every admin page)
+   ================================================================ */
+[data-testid="stSidebar"] {
+  background:linear-gradient(180deg,#0f1b2d 0%,#0b1220 100%) !important;
+  border-right:1px solid #1e2d44;
+}
+
+/* Brand block */
+.ct-side-brand {display:flex;align-items:center;gap:.7rem;padding:.2rem .2rem 1.1rem;margin-bottom:.4rem;border-bottom:1px solid #1e2d44;}
+.ct-side-logo {flex:0 0 40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:1.15rem;
+  background:linear-gradient(135deg,rgba(45,212,191,.18),rgba(56,189,248,.18));border:1px solid rgba(45,212,191,.35);}
+.ct-side-name {font-weight:800;font-size:1.02rem;letter-spacing:-.01em;color:#eef4ff;}
+.ct-side-role {font-size:.64rem;letter-spacing:.18em;font-weight:750;color:#5eead4;margin-top:2px;}
+.ct-side-section {font-size:.64rem;letter-spacing:.16em;font-weight:750;color:#6f86a6;margin:.9rem .35rem .4rem;}
+
+/* Page links */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
+  border-radius:12px;
+  padding:.55rem .75rem;
+  margin:.15rem 0;
+  border:1px solid transparent;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p {font-weight:600;color:#cfdcec;font-size:.92rem;}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {
+  background:rgba(45,212,191,.08);
+  border-color:rgba(45,212,191,.25);
+  transform:translateX(3px);
+}
+/* Current page */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] {
+  background:rgba(45,212,191,.12);
+  border-color:rgba(45,212,191,.4);
+  box-shadow:inset 3px 0 0 #2dd4bf;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p {color:#ffffff;}
+
+/* Signed-in user card */
+.ct-side-user {display:flex;align-items:center;gap:.65rem;margin-top:1.4rem;padding:.75rem .8rem;border-radius:14px;background:#122036;border:1px solid #1f3350;}
+.ct-side-avatar {flex:0 0 34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#0b1220;background:linear-gradient(135deg,#5eead4,#38bdf8);}
+.ct-side-user-name {font-weight:700;color:#eef4ff;font-size:.88rem;}
+.ct-side-user-role {display:flex;align-items:center;gap:.35rem;font-size:.7rem;color:#8ea3bf;margin-top:1px;}
+.ct-side-user-role span {width:7px;height:7px;border-radius:50%;background:#2dd4bf;box-shadow:0 0 6px rgba(45,212,191,.7);}

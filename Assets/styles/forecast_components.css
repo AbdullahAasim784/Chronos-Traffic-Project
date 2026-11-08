@@ -1,0 +1,239 @@
+/* ================================================================
+   Shared forecast components
+   6-hour panel, 7-day outlook and map panel.
+   Loaded by the public Traffic Dashboard and the Admin Dashboard,
+   so both pages look and animate the same.
+   ================================================================ */
+
+@keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
+@keyframes ct-pop {from {opacity:0;transform:scale(.92);}}
+@keyframes ct-fade {from {opacity:0;}}
+
+.ct-section {font-size:1.3rem;font-weight:750;margin:1.4rem 0 .75rem;color:#F9FAFB;}
+
+/* ================================================================
+   6-hour outlook panel
+   ================================================================ */
+.st-key-forecast_interval_panel {background:#202b3b;border:1px solid #36465d;border-radius:28px;padding:25px clamp(14px,2.5vw,32px) 24px;}
+.ct-panel-header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px;}
+.ct-panel-kicker {font-size:.84rem;font-weight:800;letter-spacing:.055em;color:#edf2fa;}
+.ct-panel-hint {font-size:.82rem;color:#9dbbe0;}
+
+/* Icon and count share one row with a small, fixed gap. */
+.ct-panel-main {display:flex;align-items:center;gap:18px;}
+.ct-panel-icon {width:56px;height:56px;flex:0 0 56px;object-fit:contain;
+  /* Recolours the black PNG. brightness(0) makes it black, invert(1) turns it white.
+     Softer grey: invert(.8). Original black: delete this filter line. */
+  filter:brightness(0) invert(1);}
+.ct-panel-count-row {display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.ct-panel-count {font-size:clamp(3.2rem,5vw,4.2rem);font-weight:800;color:#e6b64f;line-height:1.1;letter-spacing:-.05em;}
+.ct-panel-unit {font-size:.85rem;color:#b9c7d8;}
+.ct-panel-status {display:flex;gap:9px;flex-wrap:wrap;font-size:.9rem;font-weight:750;margin-top:5px;}
+.ct-panel-main-time {font-size:.82rem;color:#aebdd1;font-weight:500;}
+.ct-panel-status .low {color:#75e3b1;}
+.ct-panel-status .medium {color:#f2ca76;}
+.ct-panel-status .high {color:#ff9ca6;}
+.ct-panel-status .na {color:#b6c2d4;}
+
+.ct-panel-insight {display:flex;gap:10px;align-items:flex-start;margin:6px 0 16px;}
+.ct-insight-icon {font-size:1.3rem;font-weight:800;min-width:24px;}
+.ct-insight-icon.peak {color:#f2ba6c;}
+.ct-insight-icon.quiet {color:#75e3b1;}
+.ct-insight-label {color:#9eb5d0;font-size:.68rem;font-weight:800;letter-spacing:.07em;}
+.ct-insight-time {color:#f9fafb;font-size:1rem;font-weight:800;margin-top:3px;}
+.ct-insight-detail {color:#b6c8dd;font-size:.73rem;margin-top:3px;line-height:1.4;}
+.ct-panel-rule {height:1px;background:#405066;margin:10px 0 20px;}
+
+/* Pill-shaped interval slots */
+.ct-native-slot {height:150px;max-width:120px;margin:0 auto;padding:16px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:1px solid transparent;border-radius:60px;text-align:center;}
+.ct-native-slot.is-current {background:rgba(217,173,75,.10);border-color:rgba(217,173,75,.58);}
+.ct-panel-slot-time {font-size:clamp(.65rem,.9vw,.78rem);font-weight:750;color:#b9c9df;white-space:nowrap;}
+.ct-native-slot.is-current .ct-panel-slot-time {color:#e6b64f;}
+.ct-panel-slot-count {color:#f9fafb;font-size:clamp(1.25rem,2vw,1.8rem);font-weight:800;line-height:1.1;}
+.ct-panel-slot-level {border-radius:999px;padding:5px 10px;font-size:.72rem;font-weight:750;min-width:64px;}
+.ct-panel-slot-level.low {background:rgba(45,185,122,.15);color:#75e3b1;}
+.ct-panel-slot-level.medium {background:rgba(230,182,79,.15);color:#f2ca76;}
+.ct-panel-slot-level.high {background:rgba(240,95,111,.15);color:#ff9ca6;}
+.ct-panel-slot-level.na {background:rgba(148,163,184,.13);color:#b6c2d4;}
+
+/* Entrance: on load the pills flow in left to right after the panel appears.
+   (Defined before the slide rules so a click's slide animation takes priority.) */
+.ct-native-slot {animation:ct-up .5s cubic-bezier(.22,.61,.36,1) backwards;animation-delay:calc(.55s + var(--delay,0) * 45ms);}
+
+/* Slide animation: slots glide in one after another in the direction of travel.
+   Two identical keyframe names per direction let the animation restart on every click. */
+@keyframes ct-in-next-0 {from {opacity:0;transform:translateX(34px);} to {opacity:1;transform:none;}}
+@keyframes ct-in-next-1 {from {opacity:0;transform:translateX(34px);} to {opacity:1;transform:none;}}
+@keyframes ct-in-prev-0 {from {opacity:0;transform:translateX(-34px);} to {opacity:1;transform:none;}}
+@keyframes ct-in-prev-1 {from {opacity:0;transform:translateX(-34px);} to {opacity:1;transform:none;}}
+.ct-slide-next-0,.ct-slide-next-1,.ct-slide-prev-0,.ct-slide-prev-1 {
+  animation-duration:.42s;
+  animation-timing-function:cubic-bezier(.22,.61,.36,1);
+  animation-fill-mode:both;
+  animation-delay:calc(var(--delay,0) * 40ms);
+}
+.ct-slide-next-0 {animation-name:ct-in-next-0;}
+.ct-slide-next-1 {animation-name:ct-in-next-1;}
+.ct-slide-prev-0 {animation-name:ct-in-prev-0;}
+.ct-slide-prev-1 {animation-name:ct-in-prev-1;}
+
+/* Round arrow buttons. The arrow is an SVG shape drawn by CSS (no icon font needed),
+   coloured by the button's text colour. The "Previous"/"Next" label is hidden visually. */
+.st-key-forecast_interval_panel [data-testid="stButton"] button {
+  position:relative;
+  width:46px;height:46px;min-width:46px;min-height:46px;
+  padding:0 !important;
+  border-radius:50% !important;
+  background:#2b394d;
+  border:1.5px solid #526077;
+  color:#f9fafb;
+  font-size:0 !important;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+.st-key-forecast_interval_panel [data-testid="stButton"] button p {font-size:0 !important;color:transparent !important;}
+.st-key-forecast_interval_panel [data-testid="stButton"] button::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width:22px;
+  height:22px;
+  background-color:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12h15M13 5.5l6.5 6.5-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12h15M13 5.5l6.5 6.5-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.st-key-ct_prev_interval button::before {transform:scaleX(-1);}  /* same arrow, flipped */
+.st-key-forecast_interval_panel [data-testid="stButton"] button:hover:not(:disabled) {background:#3a4b65;border-color:#d9ad4b;transform:scale(1.06);}
+.st-key-forecast_interval_panel [data-testid="stButton"] button:disabled {opacity:.25;}
+
+/* ================================================================
+   7-day outlook
+   ================================================================ */
+.ct-week-heading {display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:6px;}
+.ct-week-heading .ct-section {margin:0;}
+.ct-week-heading-note {color:#9cb8d4;font-size:.85rem;white-space:nowrap;}
+.ct-week-description {color:#afc0d6;font-size:.9rem;margin:0 0 15px;line-height:1.45;}
+.ct-week-panel {background:#202b3b;border:1px solid #36465d;border-radius:24px;padding:14px 16px 11px;overflow:hidden;}
+.ct-week-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;}
+.ct-week-day {min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:14px 4px 15px;border-radius:11px;position:relative;transition:background-color .18s ease;}
+.ct-week-day:hover {background:rgba(159,182,212,.09);}
+.ct-week-day + .ct-week-day::before {content:"";position:absolute;left:0;top:14px;bottom:14px;width:1px;background:#41516a;}
+.ct-week-weekday {font-size:.79rem;color:#9cb8d4;font-weight:650;}
+.ct-week-date {font-size:.84rem;color:#eaf0f7;font-weight:700;white-space:nowrap;}
+.ct-week-count {font-size:clamp(1.3rem,2.1vw,1.9rem);font-weight:800;line-height:1.3;color:#e5b54c;font-variant-numeric:tabular-nums;}
+.ct-week-status {font-size:.78rem;font-weight:750;line-height:1.3;white-space:nowrap;}
+.ct-week-low {color:#67dda9;}
+.ct-week-medium {color:#f2ca76;}
+.ct-week-high {color:#ff9ca6;}
+.ct-week-na {color:#91a3bb;}
+.ct-week-footer {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;border-top:1px solid #41516a;margin-top:3px;padding:10px 6px 2px;color:#9cb8d4;font-size:.81rem;line-height:1.35;}
+.ct-week-vehicle {color:#e5b54c;font-size:1rem;line-height:1;}
+.ct-week-footer-dot {color:#64748b;padding:0 2px;}
+.ct-week-clock {font-size:1rem;line-height:1;}
+
+/* ================================================================
+   Map panel
+   ================================================================ */
+.st-key-traffic_map_panel {background:#202b3b;border:1px solid #36465d;border-radius:24px;padding:22px clamp(14px,2.2vw,28px) 16px;overflow:hidden;}
+.st-key-traffic_map_panel [data-testid="stIFrame"] {border-radius:15px;overflow:hidden;}
+.ct-map-heading {display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:14px;}
+.ct-map-heading .ct-section {margin:0;}
+.ct-map-heading-note {color:#9cb8d4;font-size:.85rem;}
+.ct-map-details {border-left:1px solid #42516a;padding:3px 0 8px clamp(15px,2vw,28px);min-height:390px;}
+.ct-map-kicker {color:#e5b54c;font-size:.73rem;letter-spacing:.11em;font-weight:800;margin-bottom:16px;}
+.ct-map-label {color:#9cb8d4;font-size:.79rem;font-weight:600;margin:12px 0 5px;}
+.ct-map-value {color:#f9fafb;font-size:1.06rem;font-weight:750;line-height:1.35;overflow-wrap:anywhere;}
+.ct-map-road {font-size:1.15rem;}
+.ct-map-direction {font-size:.85rem;color:#b6c8dd;margin-top:3px;}
+.ct-map-separator {height:1px;background:#3d4b60;margin:16px 0;}
+.ct-map-count {color:#e5b54c;font-size:clamp(1.8rem,2.5vw,2.4rem);font-weight:800;line-height:1.25;}
+.ct-map-count span {color:#b6c8dd;font-size:.76rem;font-weight:500;white-space:nowrap;}
+.ct-map-status {font-size:.9rem;font-weight:750;margin-top:4px;}
+.ct-map-low {color:#67dda9;}
+.ct-map-medium {color:#f2ca76;}
+.ct-map-high {color:#ff9ca6;}
+.ct-map-na {color:#a8b6ca;}
+.ct-map-trend {font-size:1.1rem;font-weight:780;margin-top:7px;}
+.ct-map-trend-increasing {color:#f2ca76;}
+.ct-map-trend-decreasing {color:#67dda9;}
+.ct-map-trend-stable {color:#c5d3e6;}
+.ct-map-trend-unavailable {color:#91a3bb;}
+.ct-map-trend-note {color:#b6c8dd;font-size:.77rem;margin-top:5px;line-height:1.4;}
+.ct-map-legend {display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;color:#c5d3e6;font-size:.76rem;}
+.ct-map-legend span {display:inline-flex;align-items:center;gap:5px;}
+.ct-map-dot {width:9px;height:9px;border-radius:50%;display:inline-block;}
+.ct-map-dot-low {background:#55dca4;}
+.ct-map-dot-medium {background:#e5b54c;}
+.ct-map-dot-high {background:#f17b83;}
+.ct-map-note {font-size:.72rem;line-height:1.5;color:#91a6c2;margin:10px 0 0;}
+
+/* ================================================================
+   Entrance animations for the shared components
+   "backwards" fill = the animation never blocks hover effects afterwards.
+   ================================================================ */
+.st-key-forecast_interval_panel,.ct-panel-insight,.ct-week-day,.st-key-traffic_map_panel {
+  animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
+}
+.st-key-forecast_interval_panel {animation-delay:.4s;}
+.ct-panel-count {animation:ct-pop .7s cubic-bezier(.22,.61,.36,1) .55s backwards;}
+.ct-panel-insight {animation-delay:.65s;}
+.ct-week-day:nth-child(1) {animation-delay:.8s;}
+.ct-week-day:nth-child(2) {animation-delay:.86s;}
+.ct-week-day:nth-child(3) {animation-delay:.92s;}
+.ct-week-day:nth-child(4) {animation-delay:.98s;}
+.ct-week-day:nth-child(5) {animation-delay:1.04s;}
+.ct-week-day:nth-child(6) {animation-delay:1.1s;}
+.ct-week-day:nth-child(7) {animation-delay:1.16s;}
+.st-key-traffic_map_panel {animation-delay:1.2s;}
+
+/* Scroll reveal where supported: the week days ripple in, then the map rises. */
+@supports (animation-timeline: view()) {
+  .ct-week-day,.st-key-traffic_map_panel {
+    animation:ct-up linear backwards;
+    animation-timeline:view();
+    animation-range:entry 0% cover 25%;
+  }
+  .ct-week-day:nth-child(2) {animation-range:entry 4% cover 29%;}
+  .ct-week-day:nth-child(3) {animation-range:entry 8% cover 33%;}
+  .ct-week-day:nth-child(4) {animation-range:entry 12% cover 37%;}
+  .ct-week-day:nth-child(5) {animation-range:entry 16% cover 41%;}
+  .ct-week-day:nth-child(6) {animation-range:entry 20% cover 45%;}
+  .ct-week-day:nth-child(7) {animation-range:entry 24% cover 49%;}
+  .st-key-traffic_map_panel {animation-range:entry 0% cover 20%;}
+}
+
+/* ================================================================
+   Responsive and accessibility
+   ================================================================ */
+@media (max-width:800px) {
+  .ct-native-slot {max-width:95px;padding:12px 2px;}
+  .ct-panel-slot-level {min-width:0;padding:5px 7px;}
+  .ct-panel-slot-time {font-size:.62rem;}
+  .ct-map-details {padding-left:14px;}
+  .ct-map-legend {gap:8px;}
+}
+@media (max-width:780px) {
+  .ct-week-panel {padding:10px 7px;}
+  .ct-week-day {padding:13px 2px;gap:6px;}
+  .ct-week-weekday {font-size:.7rem;}
+  .ct-week-date {font-size:.71rem;}
+  .ct-week-count {font-size:1.35rem;}
+  .ct-week-status {font-size:.69rem;}
+}
+@media (max-width:640px) {
+  .st-key-traffic_map_panel {padding:16px 12px;}
+  .ct-map-details {min-height:0;border-left:0;border-top:1px solid #42516a;padding:18px 2px 4px;}
+  .ct-map-heading-note {font-size:.75rem;}
+}
+@media (max-width:540px) {
+  .ct-week-panel {overflow-x:auto;}
+  .ct-week-grid {min-width:560px;}
+  .ct-week-footer {white-space:nowrap;}
+  .ct-week-heading-note {font-size:.75rem;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .st-key-forecast_interval_panel,.ct-panel-count,.ct-panel-insight,.ct-week-day,.st-key-traffic_map_panel,
+  .ct-native-slot,.ct-slide-next-0,.ct-slide-next-1,.ct-slide-prev-0,.ct-slide-prev-1 {animation:none !important;}
+  .st-key-forecast_interval_panel [data-testid="stButton"] button {transition:none !important;}
+  .st-key-forecast_interval_panel [data-testid="stButton"] button:hover {transform:none !important;}
+}

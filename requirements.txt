@@ -6,3 +6,5 @@ folium
 plotly
 streamlit_folium
 pillow
+pwdlib[argon2]
+PyJWT

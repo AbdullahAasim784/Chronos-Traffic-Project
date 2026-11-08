@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+:root {
+  --ct-bg:#111827; --ct-surface:#1f2937; --ct-border:#334155;
+  --ct-gold:#d5ab4c; --ct-gold-bright:#f0c96b;
+  --ct-text:#f9fafb; --ct-muted:#b3c0d3; --ct-blue:#3b82f6;
+  --ct-font:'Plus Jakarta Sans',sans-serif;
+}
+/* Universal font. Load main.css on every Streamlit page. */
+html, body, .stApp, .stApp *, [data-baseweb] {font-family:var(--ct-font) !important;}
+html {scroll-behavior:smooth;}
+/* Shared spacing only; page-specific navigation lives in home.css / forecast.css. */
+.block-container {padding-top:1.4rem !important;padding-bottom:2rem !important;max-width:1250px !important;}
+
+/* Keep Streamlit's icon font so icons don't show as text */
+[data-testid="stIconMaterial"] {
+  font-family: "Material Symbols Rounded" !important;
+}
+
+/* Shared on every page: gold-to-blue divider and centred footer */
+.ct-divider {height:1px;background:linear-gradient(90deg,transparent,#D5AE53 45%,#3B82F6 70%,transparent);margin:1.7rem 0;}
+.ct-footnote {text-align:center;color:#8498b2;font-size:.8rem;padding-bottom:.5rem;}

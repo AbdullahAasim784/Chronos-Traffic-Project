@@ -1,0 +1,159 @@
+/* =====================================
+   CHRONOS-TRAFFIC SIGN IN
+   ===================================== */
+
+/* Public page: hide Streamlit navigation and toolbar */
+[data-testid="stSidebar"],[data-testid="stSidebarNav"],[data-testid="collapsedControl"],
+[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
+
+/* Soft blue glow behind the card */
+.stApp {background:radial-gradient(900px 520px at 50% 32%,rgba(59,130,246,.11),transparent 62%),#0b1220;}
+
+.block-container {max-width:1300px !important;padding-top:1.2rem !important;padding-bottom:1rem !important;}
+
+/* ---------- Back to Home: same red pill as the other public pages ---------- */
+.st-key-back_home button {
+  width:auto !important;
+  border-radius:999px !important;
+  background:#7f2837 !important;
+  border:1px solid #b74a5b !important;
+  color:#fff5f5 !important;
+  font-weight:700 !important;
+  min-height:2.5rem;
+  padding:.45rem 1.3rem !important;
+  white-space:nowrap;
+  box-shadow:0 5px 18px rgba(127,40,55,.15);
+  transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+.st-key-back_home button:hover {
+  background:#a33749 !important;
+  border-color:#ed8290 !important;
+  color:#fff5f5 !important;
+  transform:translateY(-2px);
+  box-shadow:0 9px 22px rgba(163,55,73,.26);
+}
+.st-key-back_home button:focus-visible {outline:2px solid #f1a7b1 !important;outline-offset:3px;}
+
+/* ---------- Centered column ---------- */
+.st-key-signin_wrap {
+  width:100% !important;
+  max-width:430px;
+  margin:0 auto !important;
+  align-self:center;
+  gap:.8rem;
+  animation:ct-rise .5s cubic-bezier(.22,.61,.36,1) both;
+}
+@keyframes ct-rise {from {opacity:0;transform:translateY(16px);} to {opacity:1;transform:none;}}
+
+/* ---------- Header: lock badge + gold title ---------- */
+.signin-header {text-align:center;margin:.4rem 0 .4rem;}
+.signin-badge {
+  width:68px;height:68px;margin:0 auto .9rem;border-radius:50%;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,#1b2b44,#132034);
+  border:1px solid rgba(213,171,76,.45);
+  box-shadow:0 0 0 6px rgba(213,171,76,.06),0 10px 26px rgba(0,0,0,.35);
+  animation:ct-glow 3.2s ease-in-out infinite;
+}
+@keyframes ct-glow {
+  0%,100% {box-shadow:0 0 0 6px rgba(213,171,76,.06),0 10px 26px rgba(0,0,0,.35);}
+  50% {box-shadow:0 0 0 10px rgba(213,171,76,.10),0 10px 26px rgba(0,0,0,.35);}
+}
+/* Lock drawn as an SVG shape, coloured gold */
+.signin-lock {
+  width:30px;height:30px;background-color:#f0c96b;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3Ccircle cx='12' cy='15.5' r='1.2'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3Ccircle cx='12' cy='15.5' r='1.2'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.signin-title {
+  font-size:clamp(1.8rem,3vw,2.4rem);
+  font-weight:850;
+  letter-spacing:-.04em;
+  line-height:1.15;
+  background:linear-gradient(110deg,#b9892d 0%,#f3d381 45%,#d2a044 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.signin-sub {margin-top:.35rem;color:#a6b1c2;font-size:.95rem;letter-spacing:.02em;}
+
+/* ---------- Form card ---------- */
+[data-testid="stForm"] {
+  background:#141f30;
+  border:1px solid rgba(148,163,184,.2) !important;
+  border-radius:24px;
+  padding:1.6rem 1.8rem 1.4rem !important;
+  box-shadow:0 12px 35px rgba(0,0,0,.18);
+  transition:border-color .25s,box-shadow .25s;
+}
+[data-testid="stForm"]:hover,
+[data-testid="stForm"]:focus-within {
+  border-color:rgba(77,163,255,.45) !important;
+  box-shadow:0 14px 40px rgba(0,0,0,.25),0 0 22px rgba(77,163,255,.08);
+}
+[data-testid="stForm"] label p {font-size:.88rem !important;color:#c9d5e6 !important;font-weight:600;}
+
+/* Pill inputs */
+[data-testid="stForm"] [data-testid="stTextInput"] [data-baseweb="input"] {
+  border-radius:999px !important;
+  background:#0e1727 !important;
+  border:1px solid rgba(148,163,184,.3) !important;
+  overflow:hidden;
+  min-height:46px;
+  transition:border-color .2s ease,box-shadow .2s ease;
+}
+[data-testid="stForm"] [data-testid="stTextInput"] input {
+  border:none !important;
+  background:transparent !important;
+  padding-left:1.1rem !important;
+  box-shadow:none !important;
+}
+[data-testid="stForm"] [data-testid="stTextInput"] [data-baseweb="input"]:focus-within {
+  border-color:#4da3ff !important;
+  box-shadow:0 0 0 3px rgba(77,163,255,.14);
+}
+/* Built-in show/hide password eye button, styled to fit the pill */
+[data-testid="stForm"] [data-testid="stTextInput"] button {
+  background:transparent !important;
+  border:none !important;
+  color:#8fa3bd !important;
+  padding-right:.9rem !important;
+  transition:color .2s ease;
+}
+[data-testid="stForm"] [data-testid="stTextInput"] button:hover {color:#f0c96b !important;}
+/* Hide "Press Enter to submit form" hints */
+[data-testid="InputInstructions"] {display:none !important;}
+
+/* Submit button */
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button {
+  min-height:46px !important;
+  margin-top:.5rem;
+  border-radius:999px !important;
+  background:linear-gradient(135deg,#2476c7,#3597e5) !important;
+  color:#fff !important;
+  border:none !important;
+  font-weight:700 !important;
+  transition:background .25s ease,box-shadow .25s ease,transform .25s ease;
+}
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button:hover {
+  background:linear-gradient(135deg,#358ce0,#52adf3) !important;
+  box-shadow:0 0 20px rgba(53,151,229,.3);
+  transform:translateY(-2px);
+}
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button:active {transform:translateY(0);}
+
+/* Error / warning messages match the card's rounded style */
+.st-key-signin_wrap [data-testid="stAlert"] {border-radius:16px;}
+
+/* ---------- Footer ---------- */
+.signin-footer {display:flex;align-items:center;justify-content:center;gap:.4rem;margin-top:.4rem;color:#8794a8;font-size:.82rem;}
+
+/* ---------- Small screens ---------- */
+@media (max-width:768px) {
+  .block-container {padding-left:1rem !important;padding-right:1rem !important;}
+  [data-testid="stForm"] {padding:1.3rem 1.2rem !important;}
+  .signin-badge {width:58px;height:58px;}
+  .signin-lock {width:26px;height:26px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .st-key-signin_wrap,.signin-badge {animation:none !important;}
+  .st-key-back_home button,[data-testid="stForm"] [data-testid="stFormSubmitButton"] button {transition:none !important;transform:none !important;}
+}

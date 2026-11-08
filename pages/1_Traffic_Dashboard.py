@@ -1,505 +1,206 @@
+"""Public traffic forecast page: route selector, 6-hour outlook, 7-day outlook and map.
+
+The panels themselves live in utils/forecast_ui.py (shared with the Admin Dashboard).
+"""
+from datetime import datetime
+from html import escape
+
+import requests
 import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
-import folium
-import plotly.express as px
 from streamlit_folium import st_folium
 
-# Page Settings
-st.set_page_config(
-    page_title="Dashboard",
-    page_icon= "Assets/Dashboard_icon.png",
-    layout="wide"
+from utils.api_client import api_get  # type: ignore
+from utils.forecast_ui import (
+    build_intervals, build_map, clock, fmt, interval_panel, level,
+    reference_time, six_hour_trend, week_outlook,
 )
+from utils.styles import load_css
 
-# Load Datasets
-history = pd.read_csv("Data/Telemetry_complete.csv")
-forecast = pd.read_csv("Data/Telemetry_Forecast.csv")
+st.set_page_config(page_title="Traffic Forecast | Chronos-Traffic", page_icon="🚦", layout="wide")
+load_css("main.css", "forecast_components.css", "forecast.css")
 
-history["datetime"] = pd.to_datetime(history["datetime"])
-forecast["datetime"] = pd.to_datetime(forecast["datetime"])
+API_ERRORS = (requests.RequestException, ValueError)
 
-#Header
-header_left, header_right = st.columns([3,2])
 
-# Header CSS
-st.markdown("""
-<style>
-.selectedloc{
-    display:inline-block;
-    background:#202938;
-    border:1px solid #334155;
-    border-radius:22px;
-    padding:16px 28px;
-    color:white;
-    font-size:24px;
-    font-weight:700;
-}
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch(path, **params):
+    """Cached FastAPI call. Reruns reuse the response instead of asking the API again."""
+    return api_get(path, params) if params else api_get(path)
 
-.time-card{
-    background:#202938;
-    border:1px solid #334155;
-    border-radius:18px;
-    padding:16px 24px;
-    text-align:center;
-    color:#60A5FA;
-    font-size:20px;
-    font-weight:700;
-    width:100%;
-}
-</style>
-""", unsafe_allow_html=True)
 
+# =================================================================
+# Header
+# =================================================================
+header_left, header_right = st.columns([5, 1.5], vertical_alignment="center")
 with header_left:
-    logo_col, title_col = st.columns([0.5, 5])
-
-    with logo_col:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.image("Assets/Dashboard_icon.png")
-
-    with title_col:
-        st.markdown("""
-        <h1 style="font-size:46px;font-weight:800;margin-bottom:0;">
-        Traffic Dashboard
-        </h1>
-
-        <p style="color:#989b9c;font-size:20px;margin-top:6px;">
-        Real-Time Traffic Forecasting and Congestion Monitoring
-        </p>
-        """, unsafe_allow_html=True)
-
+    st.markdown(
+        '<div class="ct-title">Traffic Forecast</div>'
+        '<div class="ct-subtitle">Road-level vehicle forecasts and a seven-day outlook</div>',
+        unsafe_allow_html=True,
+    )
 with header_right:
-    locations = sorted(forecast["location"].unique())
-    location = st.selectbox("Select Location:", locations)
+    if st.button("← Back to Home", key="forecast_back_home"):
+        st.switch_page("Home.py")
 
-    headings = sorted(forecast[forecast["location"] == location]["heading"].unique())
-    heading = st.selectbox("Select Direction:", headings)
 
-current_time = datetime.now().strftime("%d %b %Y | %I:%M:%S %p")
+# =================================================================
+# Dataset, location and direction
+# =================================================================
+try:
+    datasets = fetch("/datasets")
+except API_ERRORS as exc:
+    st.error(f"Cannot connect to FastAPI. Start the backend first. Details: {exc}")
+    st.stop()
 
-left, right = st.columns([3.5, 1.5])
+if not datasets:
+    st.warning("No available datasets.")
+    st.stop()
 
-with left:
-    st.markdown(f"""
-    <div class="selectedloc">
-        📍 <b>Location:</b> {location}
-        &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-        🧭 <b>Direction:</b> {heading}
-    </div>
-    """, unsafe_allow_html=True)
+dataset_by_id = {d["dataset_id"]: d for d in datasets}
+dataset_id = st.session_state.get("selected_dataset_id")
+if dataset_id not in dataset_by_id:
+    dataset_id = next(iter(dataset_by_id))
+    st.session_state["selected_dataset_id"] = dataset_id
 
-with right:
-    st.markdown(f"""
-    <div class="time-card">
-        🕒 {current_time}
-    </div>
-    """, unsafe_allow_html=True)
+try:
+    locations = fetch("/locations", dataset_id=dataset_id)
+    if not locations:
+        st.info("No locations for this dataset.")
+        st.stop()
+    location_by_id = {loc["location_id"]: loc for loc in locations}
 
-st.divider()
+    route_col, selectors_col = st.columns([1.85, 1], gap="large", vertical_alignment="center")
+    with selectors_col:
+        st.markdown(
+            '<div class="ct-dataset ct-dataset-right">Dataset: '
+            f'<strong>{escape(dataset_by_id[dataset_id]["dataset_name"])}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        # Options are IDs, and each key includes its parent ID. Changing the location
+        # therefore creates a fresh direction box instead of keeping a stale selection.
+        location_id = st.selectbox(
+            "Select Location:", list(location_by_id),
+            format_func=lambda i: location_by_id[i]["location_name"],
+            key=f"forecast_location_{dataset_id}",
+        )
+        directions = fetch("/directions", location_id=location_id)
+        if not directions:
+            st.info("No directions for this location.")
+            st.stop()
+        direction_by_id = {d["direction_id"]: d for d in directions}
+        direction_id = st.selectbox(
+            "Select Direction:", list(direction_by_id),
+            format_func=lambda i: direction_by_id[i]["heading"],
+            key=f"forecast_direction_{location_id}",
+        )
 
-# Next 15-Minute Prediction
-now = datetime.now()
-minute = ((now.minute // 15) + 1) * 15
+    location = location_by_id[location_id]
+    direction = direction_by_id[direction_id]
+    range_info = fetch("/forecast-range", direction_id=direction_id)
+except API_ERRORS as exc:
+    st.error(f"Could not retrieve location data: {exc}")
+    st.stop()
 
-if minute == 60:
-    forecast_time = now.replace(
-        minute=0,
-        second=0,
-        microsecond=0
-    ) + timedelta(hours=1)
-else:
-    forecast_time = now.replace(
-        minute=minute,
-        second=0,
-        microsecond=0
+if not range_info.get("start") or not range_info.get("end"):
+    st.info("No forecasts for this road and direction.")
+    st.stop()
+
+reference, now_clock = reference_time(datetime.fromisoformat(range_info["start"]))
+
+try:
+    data = fetch(
+        "/forecast-dashboard",
+        direction_id=direction_id,
+        reference=reference.strftime("%Y-%m-%d %H:%M:%S"),
     )
+except API_ERRORS as exc:
+    st.error(f"Could not retrieve forecasts: {exc}")
+    st.stop()
 
-# Filter Selected Route
-selected = forecast[(forecast["location"] == location) & (forecast["heading"] == heading)].copy()
-selected["time"] = selected["datetime"].dt.strftime("%H:%M")
-prediction = selected[selected["time"] == forecast_time.strftime("%H:%M")]
+forecast_by_dt = {datetime.fromisoformat(x["datetime"]): x for x in data["forecasts"]}
 
-# Prediction Card CSS
-st.markdown("""
-<style>
-.pred-card{
-    display:flex;
-    justify-content:space-around;
-    align-items:center;
-    background:#1F2937;
-    border:1px solid #334155;
-    border-radius:20px;
-    padding:20px;
-}
+with route_col:
+    st.markdown(
+        '<div class="ct-route-label">SELECTED ROUTE</div>'
+        f'<div class="ct-route-name">{escape(location["location_name"])}</div>'
+        f'<div class="ct-route-heading">{escape(direction["heading"])}</div>'
+        f'<div class="ct-forecast-date">Forecast date: <strong>{reference:%d %b %Y}</strong></div>'
+        f'<div class="ct-clock-pill">🕒 Karachi/server time: {now_clock:%I:%M %p}</div>',
+        unsafe_allow_html=True,
+    )
+st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
 
-.pred-card:hover{
-    border-color:#3B82F6;
-    box-shadow:0 0 15px rgba(59,130,246,0.25);
-}
 
-.pred-item{
-    flex:1;
-    text-align:center;
-}
+# =================================================================
+# 6-hour panel and 7-day outlook (shared components)
+# =================================================================
+intervals, valid_intervals, peak, quiet = build_intervals(forecast_by_dt, reference)
+interval_panel(intervals, peak, quiet, f"forecast_slide_{direction_id}_{reference:%Y%m%d%H%M}")
 
-.pred-title{
-    font-size:22px;
-    font-weight:700;
-    color:#F8FAFC;
-    margin-bottom:12px;
-}
+st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+week_outlook(forecast_by_dt, reference)
 
-.pred-value{
-    font-size:28px;
-    font-weight:700;
-    color:#FACC15;
-}
 
-.pred-divider{
-    width:2px;
-    height:90px;
-    background:#475569;
-}
-</style>
-""", unsafe_allow_html=True)
+# =================================================================
+# Map and road insights (70/30). Values come from stored forecasts, not live traffic.
+# =================================================================
+lat, lon = data["location"].get("latitude"), data["location"].get("longitude")
+next_record = forecast_by_dt.get(reference) or {}
+next_congestion = next_record.get("congestion") or "Unavailable"
+next_count = fmt(next_record.get("predicted_count"))
+trend_text, trend_class, trend_symbol, trend_note = six_hour_trend(valid_intervals)
 
-if not prediction.empty:
+st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+with st.container(key="traffic_map_panel"):
+    st.markdown(
+        '<div class="ct-map-heading"><div class="ct-section">Traffic Map &amp; Insights</div>'
+        '<span class="ct-map-heading-note">Selected road overview</span></div>',
+        unsafe_allow_html=True,
+    )
+    map_col, info_col = st.columns([7, 3], gap="medium", vertical_alignment="top")
 
-    row = prediction.iloc[0]
-    # Prediction Card Classes
-    st.markdown(f"""
-    <div class="pred-card">
-        <div class="pred-item">
-            <div class="pred-title">Forecast Time</div>
-            <div class="pred-value">{forecast_time.strftime("%I:%M %p")}</div>
-        </div>
-        <div class="pred-divider"></div>
-        <div class="pred-item">
-            <div class="pred-title">Vehicle Count</div>
-            <div class="pred-value">{int(row["vehicle_count"])} Vehicles</div>
-        </div>
-        <div class="pred-divider"></div>
-        <div class="pred-item">
-            <div class="pred-title">Congestion</div>
-            <div class="pred-value">{row["congestion"]}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-else:
-    st.warning("No prediction available.")
-
-st.divider()
-
-# Main Container
-st.markdown("""
-<style>
-.forecast-card{
-    background:#1B2433;
-    border:1px solid #365B94;
-    border-radius:18px;
-    padding:22px;
-    margin-bottom:22px;
-}
-
-.forecast-card:hover{
-    border-color:#60A5FA;
-    box-shadow:0 0 18px rgba(59,130,246,.35);
-}
-
-.forecast-title{
-    color:#FACC15;
-    font-size:20px;
-    font-weight:700;
-    margin-bottom:22px;
-}
-
-.forecast-text{
-    color:#D1D5DB;
-    font-size:17px;
-    line-height:2;
-}
-
-.forecast-value{
-    color:#60A5FA;
-    font-weight:700;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-left, divider, right = st.columns([3.2,0.03,2])
-
-# Left: Traffic RoadMap
-with left:
-    st.subheader("🗺️ Traffic Roadmap")
-    with st.container(border=True):
-        if not prediction.empty:
-
-            row = prediction.iloc[0]
-
-            lat = float(row["latitude"])
-            lon = float(row["longitude"])
-
-            traffic = row["congestion"]
-
-            if traffic == "Low":
-                border="#16A34A"
-                fill="#4ADE80"
-
-            elif traffic=="Medium":
-                border="#F59E0B"
-                fill="#FCD34D"
-
-            else:
-                border="#DC2626"
-                fill="#F87171"
-
-            m = folium.Map(
-                location=[lat,lon],
-                zoom_start=14,
-                scrollWheelZoom=False
-            )
-
-            folium.CircleMarker(
-                location=[lat,lon],
-                radius=32,
-                color=border,
-                weight=4,
-                fill=True,
-                fill_color=fill,
-                fill_opacity=.5,
-                popup=f"""
-                <b>Location:</b> {location}<br>
-                <b>Direction:</b> {heading}<br>
-                <b>Forecast:</b> {int(row["vehicle_count"])} Vehicles<br>
-                <b>Congestion:</b> {traffic}
-                """
-            ).add_to(m)
-
-            st_folium(
-                m,
-                height=430,
-                width=None,
-            )
-
+    with map_col:
+        if lat is None or lon is None:
+            st.info("Map coordinates are unavailable for this location.")
         else:
-            st.warning("No prediction available.")
+            st_folium(
+                build_map(lat, lon, location["location_name"], direction["heading"], reference, next_record),
+                height=420, use_container_width=True, returned_objects=[],
+                key=f"traffic_map_{direction_id}_{reference:%Y%m%d%H%M}",
+            )
 
-with divider:
-    st.markdown("""
-    <div style="
-        border-left:2px solid #3B4456;
-        height:550px;
-        margin:auto;
-    "></div>
-""", unsafe_allow_html=True)
-
-# Right: Upcoming Forecasts
-with right:
-    st.subheader("📅 Upcoming Forecasts")
-    st.markdown('<div class="forecast-box">', unsafe_allow_html=True)
-
-    # 30 Minutes
-    time30 = forecast_time + timedelta(minutes=30)
-    pred30 = selected[selected["time"] == time30.strftime("%H:%M")]
-
-    if not pred30.empty:
-        row30 = pred30.iloc[0]
-        st.markdown(f"""
-        <div class="forecast-card">
-        <div class="forecast-title">
-        ⏱ Next 30 Minutes
-        </div>
-
-        <div class="forecast-text">
-        Vehicle Count:
-        <span class="forecast-value"> 
-        {int(row30['vehicle_count'])} Vehicles 
-        </span>
-        </div>
-
-        <div class="forecast-text">
-        Congestion: 
-        <span class="forecast-value"> 
-        {row30['congestion']} 
-        </span>
-        </div>
-
-        <div class="forecast-text">
-        Forecast Time:
-        <span class="forecast-value"> 
-        {time30.strftime('%I:%M %p')} 
-        </span>
-        </div>
-        </div>
-""", unsafe_allow_html=True)
-
-    # 60 Minutes
-    time60 = forecast_time + timedelta(minutes=60)
-    pred60 = selected[selected["time"] == time60.strftime("%H:%M")]
-
-    if not pred60.empty:
-        row60 = pred60.iloc[0]
-        st.markdown(f"""
-        <div class="forecast-card">
-        <div class="forecast-title">
-        ⏱ Next 60 Minutes
-        </div>
-
-        <div class="forecast-text">
-        Vehicle Count:
-        <span class="forecast-value"> 
-        {int(row60['vehicle_count'])} Vehicles 
-        </span>
-        </div>
-
-        <div class="forecast-text">
-        Congestion: 
-        <span class="forecast-value"> 
-        {row60['congestion']} 
-        </span>
-        </div>
-
-        <div class="forecast-text">
-        Forecast Time:
-        <span class="forecast-value"> 
-        {time60.strftime('%I:%M %p')} 
-        </span>
-        </div>
-        </div>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-# Traffic Forecast Trend
-st.subheader("📈 Traffic Forecast Trend")
-st.caption("🔵 Historical Average Traffic   |   🟠 Prophet Forecast   |   🟡 Current Prediction")
-
-history_selected = history[
-    (history["location"] == location) &
-    (history["heading"] == heading)
-].copy()
-
-history_selected["time"] = history_selected["datetime"].dt.strftime("%H:%M")
-
-historical_avg = (
-    history_selected
-    .groupby("time")["vehicle_count"]
-    .mean()
-    .reset_index()
-)
-
-historical_avg.rename(columns={"vehicle_count": "Historical"},inplace=True)
-
-forecast_selected = forecast[
-    (forecast["location"] == location) &
-    (forecast["heading"] == heading)
-].copy()
-
-forecast_selected["time"] = forecast_selected["datetime"].dt.strftime("%H:%M")
-
-forecast_selected = forecast_selected[["time", "vehicle_count"]].rename(columns={"vehicle_count": "Forecast"})
-
-trend = historical_avg.merge(forecast_selected, on="time", how="inner")
-
-fig = px.line(
-    trend,
-    x="time",
-    y=["Historical", "Forecast"],
-    color_discrete_map={"Historical": "#3B82F6","Forecast": "#F97316"},
-)
-
-# Current Prediction Marker
-selected_time = forecast_time.strftime("%H:%M")
-selected_point = trend[trend["time"] == selected_time]
-
-if not selected_point.empty:
-    fig.add_scatter(
-        x=selected_point["time"],
-        y=selected_point["Forecast"],
-        mode="markers",
-        marker=dict(size=16,color="#FACC15",line=dict(color="#F97316", width=3)),
-        name="Current Prediction",
+    with info_col:
+        st.markdown(
+            '<section class="ct-map-details" aria-label="Road and traffic insights">'
+            '<div class="ct-map-kicker">ROAD INFORMATION</div>'
+            '<div class="ct-map-label">Selected road</div>'
+            f'<div class="ct-map-value ct-map-road">{escape(location["location_name"])}</div>'
+            f'<div class="ct-map-value ct-map-direction">{escape(direction["heading"])}</div>'
+            '<div class="ct-map-separator"></div>'
+            f'<div class="ct-map-label">Next forecast · {escape(clock(reference))}</div>'
+            f'<div class="ct-map-count">{escape(next_count)}<span> vehicles / 15 min</span></div>'
+            f'<div class="ct-map-status ct-map-{level(next_congestion)}">● {escape(next_congestion)} congestion</div>'
+            '<div class="ct-map-separator"></div>'
+            '<div class="ct-map-label">6-HOUR TRAFFIC TREND</div>'
+            f'<div class="ct-map-trend ct-map-trend-{trend_class}">'
+            f'<span aria-hidden="true">{trend_symbol}</span> {escape(trend_text)}</div>'
+            f'<div class="ct-map-trend-note">{escape(trend_note)}</div>'
+            '<div class="ct-map-separator"></div>'
+            '<div class="ct-map-label">TRAFFIC INTENSITY</div>'
+            '<div class="ct-map-legend">'
+            '<span><i class="ct-map-dot ct-map-dot-low"></i> Low</span>'
+            '<span><i class="ct-map-dot ct-map-dot-medium"></i> Medium</span>'
+            '<span><i class="ct-map-dot ct-map-dot-high"></i> High</span>'
+            "</div></section>",
+            unsafe_allow_html=True,
+        )
+    st.markdown(
+        '<div class="ct-map-note">Map marker color represents the next stored forecast, not live traffic.</div>',
+        unsafe_allow_html=True,
     )
 
-fig.update_traces(line=dict(width=4),)
-
-# Layout
-fig.update_layout(
-    height=420,
-    plot_bgcolor="#111827",
-    paper_bgcolor="#111827",
-    hovermode="x unified",
-    margin=dict(l=20, r=20, t=20, b=20,),
-    font=dict(color="#E5E7EB",size=14,),
-    legend=dict(orientation="h",y=1.08,x=0,bgcolor="rgba(0,0,0,0)",font=dict(size=13),),
-    xaxis_title="Time of Day",
-    yaxis_title="Vehicle Count",
+st.markdown(
+    '<div class="ct-divider"></div>'
+    '<div class="ct-footnote">© 2026 Chronos-Traffic · Bahria University Karachi Campus · Final Year Project</div>',
+    unsafe_allow_html=True,
 )
-
-fig.update_xaxes(
-    tickangle=-45,
-    nticks=24,
-    showgrid=False,
-    showline=True,
-    linecolor="#374151",
-    tickfont=dict(color="#D1D5DB"),
-)
-
-fig.update_yaxes(
-    showgrid=True,
-    gridcolor="#374151",
-    zeroline=False,
-    showline=True,
-    linecolor="#374151",
-    tickfont=dict(color="#D1D5DB"),
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
-
-st.caption("© 2026 Chronos-Traffic | Bahria University Karachi Campus | Final Year Project Prototype")
-
-# Sidebar
-with st.sidebar:
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style=" text-align:center; color:#94A3B8; line-height:1.2;">
-
-    <div style="
-        font-size:18px;
-        color:white;
-        font-weight:700;
-        margin-top:10px;
-        margin-bottom:5px;">
-        🚦 Chronos-Traffic
-    </div>
-
-    <div style="font-size:14px; margin-bottom:10px;">
-        AI-Driven Spatio-Temporal <br>
-        Traffic Forecasting & Anomaly Detection
-    </div>
-
-    <div style="
-        display:inline-block;
-        background:#1F2937;
-        border:1px solid #334155;
-        border-radius:12px;
-        padding:8px 18px;
-        color:#60A5FA;
-        font-weight:600;
-        font-size:14px;
-        margin-bottom:10px;">
-        Version 1.0
-    </div>
-
-    <div style="font-size:13px;">
-        © 2026 Bahria University<br>
-        Computer Science Department
-    </div>
-
-    </div>
-    """, unsafe_allow_html=True)
