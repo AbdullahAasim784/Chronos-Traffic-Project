@@ -1,384 +1,401 @@
-import streamlit as st
+"""Chronos-Traffic | Historical Analysis (admin page).
+
+Recorded traffic counts for one road and direction from the traffic_counts table.
+Reads SQLite directly (same as the Admin Dashboard), so it works when FastAPI is down.
+"""
+import sqlite3
+from datetime import datetime, timedelta
+
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
-# Page Settings
-st.set_page_config(
-    page_title="Historical Analysis",
-    page_icon="Assets/Historical_icon.png",
-    layout="wide"
+from utils.admin_ui import (
+    admin_header, divider, footer_and_stop, kpi_card, kpi_grid, meter,
+    panel_heading, read_sql, route_selectors, setup_admin_page,
+)
+from utils.forecast_ui import clock, fmt
+from utils.ui import BLUE, FOOTER, GOLD, ICONS, PLOT_CONFIG, SPIKES, chart_layout, gold_area, highlight_marker
+
+setup_admin_page("Historical Analysis", "🗄️", "historical_analysis.css")
+
+INTERVALS_PER_DAY = 96                       # 24 h of 15-minute records
+USABLE_SHARE = 0.9                           # a day counts for averages if >= 90% of its intervals exist
+MIN_INTERVALS = int(INTERVALS_PER_DAY * USABLE_SHARE)   # 86 of 96
+WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+def num(value, digits=1):
+    if value is None or pd.isna(value):
+        return "—"
+    return f"{value:,.{digits}f}"
+
+
+def hour_label(hour):
+    return clock(datetime(2000, 1, 1, int(hour)))
+
+
+admin_header("Historical Analysis", "Recorded traffic patterns from the telemetry dataset")
+dataset, location, direction = route_selectors("ha", "HISTORICAL OVERVIEW")
+direction_id = int(direction["direction_id"])
+location_name, heading = location["location_name"], direction["heading"]
+
+
+# =================================================================
+# Recorded counts for the selected direction
+# =================================================================
+try:
+    history = read_sql(
+        "SELECT datetime, vehicle_count FROM traffic_counts WHERE direction_id = ? ORDER BY datetime",
+        (direction_id,),
+    ).copy()
+except sqlite3.Error as exc:
+    st.error(f"Traffic records unavailable: {exc}")
+    footer_and_stop()
+
+history["datetime"] = pd.to_datetime(history["datetime"], errors="coerce")
+history["vehicle_count"] = pd.to_numeric(history["vehicle_count"], errors="coerce")
+history = history.dropna(subset=["datetime", "vehicle_count"])
+
+if history.empty:
+    st.info("No recorded traffic is stored for this road and direction yet.")
+    footer_and_stop()
+
+history["date"] = history["datetime"].dt.date
+history["weekday"] = history["datetime"].dt.dayofweek
+history["slot"] = history["datetime"].dt.strftime("%H:%M")
+
+first_ts, last_ts = history["datetime"].min(), history["datetime"].max()
+span_days = (last_ts.date() - first_ts.date()).days + 1
+expected = span_days * INTERVALS_PER_DAY
+completeness = len(history) / expected * 100 if expected else None
+
+# Per-day totals. Daily averages only use "usable" days (>= 90% of the 96 intervals recorded),
+# so days cut short by missing data don't drag the averages down.
+per_day = history.groupby("date")["vehicle_count"].agg(["sum", "size", "mean"])
+usable_days = per_day[per_day["size"] >= MIN_INTERVALS]
+basis = usable_days if not usable_days.empty else per_day
+
+# Hourly totals for every hour in the record (gaps stay gaps, never filled).
+hourly = history.set_index("datetime")["vehicle_count"].resample("h").sum(min_count=1).dropna().to_frame("vehicles")
+hourly["hour"] = hourly.index.hour
+hourly["weekday"] = hourly.index.dayofweek
+
+
+# =================================================================
+# Data summary: short paragraph + completeness meter
+# =================================================================
+missing = max(0, expected - len(history))
+st.markdown(
+    '<div class="ct-summary"><div>'
+    '<div class="ct-admin-eyebrow">DATA SUMMARY</div>'
+    f"<p>This road has <strong>{fmt(len(history))}</strong> recorded 15-minute intervals, from "
+    f'<span class="ct-hl">{first_ts:%d %b %Y}</span> to <span class="ct-hl">{last_ts:%d %b %Y}</span>, '
+    f"across <strong>{fmt(len(per_day))} days</strong>. "
+    f"<strong>{fmt(len(usable_days))}</strong> of them have at least 90% of their intervals recorded "
+    "and are used for the daily averages. "
+    + (f'<span class="ct-hl bright">{fmt(missing)} intervals are missing</span> and are shown as gaps, not filled in.'
+       if missing else "No intervals are missing in this period.")
+    + "</p></div>"
+    '<div class="ct-summary-side">'
+    '<div class="ct-summary-top"><span class="ct-summary-label">DATA COMPLETENESS</span>'
+    f'<span class="ct-summary-value">{num(completeness)}%</span></div>'
+    f"{meter(completeness)}"
+    f'<div class="ct-summary-legend"><span>Recorded <b>{fmt(len(history))}</b></span>'
+    f"<span>Expected <b>{fmt(expected)}</b></span></div>"
+    "</div></div>",
+    unsafe_allow_html=True,
 )
 
-# Load Data
-history = pd.read_csv("Data/Telemetry_complete.csv")
-history["datetime"] = pd.to_datetime(history["datetime"])
 
-# Header + CSS
-st.markdown("""
-<style>
-.selectedloc{
-    display:inline-block;
-    background:#202938;
-    border:1px solid #334155;
-    border-radius:22px;
-    padding:16px 28px;
-    color:white;
-    font-size:24px;
-    font-weight:700;
-    margin-top:15px;
-}
-</style>
-""", unsafe_allow_html=True)
+# =================================================================
+# KPI cards (same component as the Admin Dashboard)
+# =================================================================
+avg_daily = basis["sum"].mean()
+hour_profile = hourly.groupby("hour")["vehicles"].mean()
+peak_hour = hour_profile.idxmax()
+top_row = history.loc[history["vehicle_count"].idxmax()]
 
-header_left, header_right = st.columns([3,2])
-
-with header_right:
-    locations = sorted(history["location"].unique())
-    location = st.selectbox("Select Location:", locations)
-
-    headings = sorted(history[history["location"] == location]["heading"].unique())
-    heading = st.selectbox("Select Direction:", headings)
-
-data = history[
-    (history["location"] == location) &
-    (history["heading"] == heading)
-].copy()
-
-with header_left:
-    logo_col, title_col = st.columns([0.5, 5])
-
-    with logo_col:
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.image("Assets/Historical_icon.png")
-
-    with title_col:
-        st.markdown("""
-        <h1 style="font-size:46px;font-weight:800;margin-bottom:0;">
-        Historical Analysis
-        </h1>
-
-        <p style="color:#989b9c;font-size:20px;margin-top:6px;">
-        Analysis of Historical patterns from Telemetry dataset.
-        </p>
-        """, unsafe_allow_html=True)
-
-        st.markdown(f"""
-            <div class="selectedloc">
-                📍 <b>Location:</b> {location}
-                &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
-                🧭 <b>Direction:</b> {heading}
-            </div>
-        """,unsafe_allow_html=True)
-
-st.divider()
-
-# History Card CSS
-st.markdown("""
-<style>
-.history-card{
-    display:flex;
-    justify-content:space-evenly;
-    align-items:center;
-    background:#1F2937;
-    border:1px solid #334155;
-    border-radius:20px;
-    padding:20px;
-}
-
-.history-card:hover{
-    border-color:#3B82F6;
-    box-shadow:0 0 15px rgba(59,130,246,0.25);
-}
-
-.history-item{
-    flex:1;
-    text-align:center;
-}
-
-.history-title{
-    font-size:22px;
-    font-weight:700;
-    color:#F8FAFC;
-    margin-bottom:12px;
-}
-
-.history-value{
-    font-size:28px;
-    font-weight:700;
-    color:#FACC15;
-}
-
-.history-divider{
-    width:2px;
-    height:70px;
-    background:#475569;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Summary Overview
-hourly_avg = data.groupby(data["datetime"].dt.hour)["vehicle_count"].mean()
-peak_hour = hourly_avg.idxmax()
-
-st.markdown(f"""
-    <div class="history-card">
-
-    <div class="history-item">
-        <div class="history-title">Total Records</div>
-        <div class="history-value">{len(data):,}</div>
-    </div>
-
-    <div class="history-divider"></div>
-
-    <div class="history-item">
-        <div class="history-title">Average Vehicles</div>
-        <div class="history-value">{round(data["vehicle_count"].mean())}</div>
-    </div>
-
-    <div class="history-divider"></div>
-
-    <div class="history-item">
-        <div class="history-title">Maximum Vehicles</div>
-        <div class="history-value">{int(data["vehicle_count"].max())}</div>
-    </div>
-
-    <div class="history-divider"></div>
-
-    <div class="history-item">
-        <div class="history-title">Peak Hour</div>
-        <div class="history-value">{peak_hour:02d}:00 - {peak_hour + 1:02d}:00</div>
-    </div>
-
-    </div>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-# Historical Traffic Records
-st.subheader("Historical Traffic Records")
-st.markdown("""
-<div style="font-size:16px;color:#989b9c;"
-<p>Select a date to view the complete 24-hour traffic records for the selected location and direction.</p>
-</div>
-""", unsafe_allow_html=True)
-
-min_date = data["datetime"].dt.date.min()
-max_date = data["datetime"].dt.date.max()
-
-left, right = st.columns([1,3])
-
-with left:
-    selected_date = st.date_input(
-        "Select Date",
-        value=max_date,
-        min_value=min_date,
-        max_value=max_date,
-    )
-
-with right:
-    st.markdown(f"""
-    <div style="
-        width:420px;
-        margin-left:auto;
-        background:#1E293B;
-        border:1px solid #334155;
-        border-radius:10px;
-        padding:12px 16px;
-        color:#E2E8F0;
-        font-size:15px;
-        text-align:center;
-    ">
-        📅 <b>Dates available from: {min_date.strftime('%d %b %Y')} → {max_date.strftime('%d %b %Y')}</b>
-    </div>
-    """, unsafe_allow_html=True)
-
-day_data = data[data["datetime"].dt.date == selected_date].copy()
-
-if day_data.empty:
-    st.warning("No historical records available for the selected date.")
-
-else:
-    table = day_data[["datetime", "vehicle_count"]].copy()
-
-    table["datetime"] = table["datetime"].dt.strftime("%H:%M")
-    table.columns = ["Time", "Vehicle Count"]
-
-    table = (
-        table.style
-        .hide(axis="index")
-        .set_properties(**{
-            "text-align":"center",
-            "font-size":"15px"
-        })
-        .set_table_styles([
-            {
-                "selector":"th",
-                "props":[
-                    ("text-align","center"),
-                    ("font-size","16px"),
-                    ("font-weight","700"),
-                    ("background-color","#1E293B"),
-                    ("color","white")
-                ]
-            }
-        ])
-    )
-
-    with st.container(border=True):
-        st.dataframe(table, use_container_width=True, height=350)
-
-    st.markdown("### 📈 Traffic Pattern")
-
-    fig1 = px.line(
-        day_data,
-        x="datetime",
-        y="vehicle_count",
-        markers=True,
-        title=f"Traffic Volume - {selected_date.strftime('%d %B %Y')}",
-        color_discrete_sequence=["#60A5FA"]
-    )
-
-    fig1.update_traces(line_width=4, marker_size=7)
-
-    fig1.update_layout(
-        height=420,
-        plot_bgcolor="#111827",
-        paper_bgcolor="#111827",
-        hovermode="x unified",
-        xaxis_title="Time",
-        yaxis_title="Vehicle Count",
-        margin=dict(l=20, r=20, t=45, b=20),
-        font=dict(color="#E5E7EB",size=14,),
-    )
-
-    st.plotly_chart(fig1, use_container_width=True)
-
-st.divider()
-
-# Average Traffic By Hour
-st.subheader("Average Traffic Distribution by Hour")
-st.markdown("""
-<div style="font-size:16px;color:#989b9c;"
-<p>Average vehicle count for each hour calculated from the complete historical dataset.</p>
-</div>
-""", unsafe_allow_html=True)
-
-data["hour"] = (data["datetime"].dt.hour)
-
-hourly_average = (
-    data
-    .groupby("hour")["vehicle_count"]
-    .mean()
-    .reset_index()
+basis_weekday = pd.Series(pd.to_datetime(basis.index).dayofweek, index=basis.index)
+week_avg = basis["sum"].groupby(basis_weekday).mean().reindex(range(7))
+busiest_wd = int(week_avg.idxmax())
+week_max = week_avg.max() or 1
+week_bars = (
+    '<div class="ct-ha-week">' + "".join(
+        f'<span class="{"top" if i == busiest_wd else ""}" '
+        f'style="height:{max(8, (v / week_max * 100) if pd.notna(v) else 0):.0f}%" '
+        f'title="{WEEKDAY_NAMES[i]}: {fmt(v)} vehicles"></span>'
+        for i, v in enumerate(week_avg)
+    ) + '</div><div class="ct-ha-week-labels">' + "".join(f"<span>{d[0]}</span>" for d in WEEKDAYS) + "</div>"
 )
 
-fig2 = px.bar(
-    hourly_average,
-    x="hour",
-    y="vehicle_count",
-    title="Average Vehicles Per Hour",
-    color_discrete_sequence=["#60A5FA"]
+kpi_grid(
+    kpi_card(ICONS["steering-wheel"], "AVG VEHICLES / DAY",
+               f'<div class="ct-admin-kpi-value">{fmt(avg_daily)}</div>',
+               f"Average of {fmt(len(basis))} days"
+               + (" with at least 90% of intervals" if not usable_days.empty else " (all partial)")),
+    kpi_card(ICONS["clock"], "PEAK HOUR",
+               f'<div class="ct-admin-kpi-value gold">{hour_label(peak_hour)}</div>',
+               f"About {fmt(hour_profile.max())} vehicles in that hour on an average day"),
+    kpi_card(ICONS["trending-up"], "HIGHEST RECORDED",
+               f'<div class="ct-admin-kpi-value">{fmt(top_row["vehicle_count"])}'
+               '<span class="ct-unit">/ 15 min</span></div>',
+               f'{top_row["datetime"]:%a %d %b %Y} · {clock(top_row["datetime"])}'),
+    kpi_card(ICONS["calendar-week"], "BUSIEST DAY OF WEEK",
+               f'<div class="ct-admin-kpi-value gold">{WEEKDAY_NAMES[busiest_wd]}</div>{week_bars}',
+               f"{fmt(week_avg.max())} vehicles on an average {WEEKDAY_NAMES[busiest_wd]}"),
 )
+divider()
 
-fig2.update_layout(
-    height=420,
-    plot_bgcolor="#111827",
-    paper_bgcolor="#111827",
-    hovermode="x unified",
-    xaxis_title="Hour of Day",
-    yaxis_title="Average Vehicle Count",
-    font=dict(color="#E5E7EB",size=14,)
-)
 
-fig2.update_xaxes(tickmode="linear",tick0=0,dtick=1)
+# =================================================================
+# 1. Daily traffic pattern + records table.
+#    A fragment: changing the date or resolution reruns only these two panels.
+# =================================================================
+default_day = (max(usable_days.index) if not usable_days.empty else last_ts.date())
 
-st.plotly_chart(fig2,use_container_width=True)
 
-st.divider()
+@st.fragment
+def day_explorer(history):
+    with st.container(key="panel_ha_day"):
+        st.markdown(
+            panel_heading("📅 Daily Traffic Pattern", "Drag to zoom · double-click to reset")
+            + '<div class="ct-legend">'
+            '<span><i class="gold"></i>Recorded traffic</span>'
+            '<span><i class="dot-blue"></i>Peak</span></div>',
+            unsafe_allow_html=True,
+        )
+        date_col, range_col, res_col = st.columns([1.2, 2, 1.3], vertical_alignment="center")
+        with date_col:
+            day = st.date_input(
+                "Select date", value=default_day, format="DD/MM/YYYY", label_visibility="collapsed",
+                min_value=first_ts.date(), max_value=last_ts.date(), key=f"ha_date_{direction_id}",
+            )
+        with range_col:
+            st.markdown(
+                f'<div class="ct-ha-range"><i>◷</i> Data available <b>{first_ts:%d %b %Y}</b> → '
+                f"<b>{last_ts:%d %b %Y}</b></div>",
+                unsafe_allow_html=True,
+            )
+        with res_col:
+            resolution = st.segmented_control(
+                "Resolution", ["Hourly", "15-min"], default="Hourly",
+                key="res_ha_day", label_visibility="collapsed",
+            ) or "Hourly"
 
-# Daily Traffic Trend
-st.subheader("Daily Average Traffic Trend")
-st.markdown("""
-<div style="font-size:16px;color:#989b9c;"
-<p>Daily average traffic behaviour across the complete historical period.</p>
-</div>
-""", unsafe_allow_html=True)
+        day_rows = history[history["date"] == day]
+        day_start = datetime.combine(day, datetime.min.time())
 
-data["date"] = (data["datetime"].dt.date)
+        if day_rows.empty:
+            st.markdown(
+                f'<div class="ct-empty"><b>No records for {day:%A, %d %B %Y}</b>'
+                "This date is a gap in the telemetry data. Pick another date.</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            # Full day of slots, so missing intervals show as breaks in the line (never filled in).
+            counts = day_rows.set_index("datetime")["vehicle_count"]
+            if resolution == "Hourly":
+                slots = pd.date_range(day_start, periods=24, freq="h")
+                series = counts.resample("h").sum(min_count=1).reindex(slots)
+                unit = "vehicles / hour"
+            else:
+                slots = pd.date_range(day_start, periods=INTERVALS_PER_DAY, freq="15min")
+                series = counts.reindex(slots)
+                unit = "vehicles / 15 min"
+            shown = series.dropna()
 
-daily_average = (
-    data
-    .groupby("date")["vehicle_count"]
-    .mean()
-    .reset_index()
-)
+            recorded = len(day_rows)
+            if recorded < INTERVALS_PER_DAY:
+                st.markdown(
+                    f'<div class="ct-ha-partial"><i>◔</i> <b>{recorded} of {INTERVALS_PER_DAY}</b> intervals '
+                    "recorded on this day. Missing intervals are shown as gaps, not filled in.</div>",
+                    unsafe_allow_html=True,
+                )
 
-fig3 = px.line(
-    daily_average,
-    x="date",
-    y="vehicle_count",
-    title="Daily Average Vehicle Count",
-    color_discrete_sequence=["#60A5FA"],
-    markers=True
-)
+            peak_ts, peak_val = shown.idxmax(), shown.max()
+            quiet_ts, quiet_val = shown.idxmin(), shown.min()
+            mean_val = shown.mean()
 
-fig3.update_traces(line_width=3)
+            fig = go.Figure()
+            fig.add_trace(gold_area(
+                x=series.index, y=series.values, mode="lines", name="Recorded", connectgaps=False,
+                line=dict(color=GOLD, width=3, shape="spline", smoothing=0.6),
+                hovertemplate=f"Recorded <b>%{{y:,.0f}}</b> {unit}<extra></extra>",
+            ))
+            highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}")
+            fig.add_hline(
+                y=mean_val, line=dict(color="rgba(148,163,184,.55)", dash="dot", width=1),
+                annotation_text=f"Avg {fmt(mean_val)}", annotation_position="top left",
+                annotation_font=dict(color="#9fb0c6", size=10),
+            )
+            chart_layout(fig, 380, unit, dict(
+                range=[day_start, day_start + timedelta(days=1)], tickformat="%H:%M",
+                dtick=2 * 3600 * 1000, hoverformat="%I:%M %p", **SPIKES,
+            ))
+            st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
 
-fig3.update_layout(
-    height=420,
-    plot_bgcolor="#111827",
-    paper_bgcolor="#111827",
-    hovermode="x unified",
-    xaxis_title="Date",
-    yaxis_title="Average Vehicle Count",
-    margin=dict(l=20,r=20,t=40,b=20),
-    font=dict(color="#E5E7EB",size=14,)
-)
+            st.markdown(
+                '<div class="ct-chart-stats">'
+                f'<div><span>Total</span><strong>{fmt(day_rows["vehicle_count"].sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
+                f'<div><span>Peak</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
+                f'<div><span>Quietest</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
+                f'<div><span>Average</span><strong class="gold">{fmt(mean_val)}</strong><small>{unit}</small></div>'
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
-st.plotly_chart(fig3,use_container_width=True)
+    divider()
 
-st.divider()
+    with st.container(key="panel_ha_table"):
+        title_col, dl_col = st.columns([3, 1], vertical_alignment="center")
+        with title_col:
+            st.markdown(
+                f'<div class="ct-head"><div class="ct-section">🗂️ Traffic Records · {day:%a %d %b %Y}</div></div>'
+                '<div class="ct-subnote">Every recorded 15-minute interval on this day.</div>',
+                unsafe_allow_html=True,
+            )
+        if day_rows.empty:
+            st.info("No records to show for this date.")
+            return
 
-st.caption("© 2026 Chronos-Traffic | Bahria University Karachi Campus | Final Year Project Prototype")
+        with dl_col:
+            st.download_button(
+                "⬇ Download CSV",
+                data=day_rows[["datetime", "vehicle_count"]].rename(columns={"vehicle_count": "vehicles"})
+                .to_csv(index=False).encode("utf-8"),
+                file_name=f"traffic_{location_name}_{heading}_{day:%Y-%m-%d}.csv".replace(" ", "_"),
+                mime="text/csv", key="ha_download",
+            )
 
-# Sidebar
-with st.sidebar:
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
+        top = float(day_rows["vehicle_count"].max() or 1)
+        rows = "".join(
+            f'<tr style="--i:{i}"><td>{r.datetime:%H:%M}</td>'
+            f'<td><div class="ct-tbar"><div class="ct-meter"><span style="width:{min(100, r.vehicle_count / top * 100):.1f}%"></span></div>'
+            f"<b>{fmt(r.vehicle_count)}</b></div></td></tr>"
+            for i, r in enumerate(day_rows.itertuples(index=False))
+        )
+        st.markdown(
+            '<div class="ct-table-wrap"><table class="ct-table ct-ha-table"><thead><tr>'
+            "<th>TIME</th><th>VEHICLES / 15 MIN</th>"
+            f"</tr></thead><tbody>{rows}</tbody></table></div>",
+            unsafe_allow_html=True,
+        )
 
-    st.markdown("""
-    <div style=" text-align:center; color:#94A3B8; line-height:1.2;">
 
-    <div style="
-        font-size:18px;
-        color:white;
-        font-weight:700;
-        margin-top:10px;
-        margin-bottom:5px;">
-        🚦 Chronos-Traffic
-    </div>
+day_explorer(history)
+divider()
 
-    <div style="font-size:14px; margin-bottom:10px;">
-        AI-Driven Spatio-Temporal <br>
-        Traffic Forecasting & Anomaly Detection
-    </div>
 
-    <div style="
-        display:inline-block;
-        background:#1F2937;
-        border:1px solid #334155;
-        border-radius:12px;
-        padding:8px 18px;
-        color:#60A5FA;
-        font-weight:600;
-        font-size:14px;
-        margin-bottom:10px;">
-        Version 1.0
-    </div>
+# =================================================================
+# 2. Average traffic by hour of day (all days / weekdays / weekends)
+# =================================================================
+@st.fragment
+def hour_distribution(hourly):
+    with st.container(key="panel_ha_hour"):
+        st.markdown(
+            panel_heading("🕒 Average Traffic by Hour", "Average vehicles in each hour across the whole record"),
+            unsafe_allow_html=True,
+        )
+        group = st.segmented_control(
+            "Days", ["All days", "Weekdays", "Weekends"], default="All days",
+            key="ha_hour_filter", label_visibility="collapsed",
+        ) or "All days"
+        subset = hourly
+        if group == "Weekdays":
+            subset = hourly[hourly["weekday"] < 5]
+        elif group == "Weekends":
+            subset = hourly[hourly["weekday"] >= 5]
 
-    <div style="font-size:13px;">
-        © 2026 Bahria University<br>
-        Computer Science Department
-    </div>
+        profile = subset.groupby("hour")["vehicles"].mean().reindex(range(24))
+        if profile.dropna().empty:
+            st.info("No records for this selection.")
+            return
+        top, low = int(profile.idxmax()), int(profile.idxmin())
 
-    </div>
-    """, unsafe_allow_html=True)
+        fig = go.Figure(go.Bar(
+            x=[f"{h:02d}:00" for h in profile.index], y=profile.values,
+            marker=dict(color=[BLUE if h == top else GOLD for h in profile.index], line=dict(width=0)),
+            opacity=0.9,
+            hovertemplate="%{x}<br><b>%{y:,.0f}</b> vehicles on average<extra></extra>",
+        ))
+        chart_layout(fig, 340, "vehicles / hour", dict(fixedrange=True, dtick=2))
+        fig.update_layout(hovermode="closest", bargap=0.22)
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
+
+        day_total = profile.sum()
+        daytime = profile.loc[7:18].sum()
+        st.markdown(
+            '<div class="ct-chart-stats">'
+            f'<div><span>Busiest hour</span><strong class="peak">{hour_label(top)}</strong><small>{fmt(profile[top])} vehicles / hour</small></div>'
+            f'<div><span>Quietest hour</span><strong class="quiet">{hour_label(low)}</strong><small>{fmt(profile[low])} vehicles / hour</small></div>'
+            f'<div><span>Daytime share</span><strong class="gold">{num(daytime / day_total * 100 if day_total else None, 0)}%</strong><small>of daily traffic, 7 AM – 7 PM</small></div>'
+            f'<div><span>Average</span><strong>{fmt(profile.mean())}</strong><small>vehicles / hour · {group.lower()}</small></div>'
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+
+hour_distribution(hourly)
+divider()
+
+
+# =================================================================
+# 3. Daily average trend over the whole period, with a rolling average
+# =================================================================
+@st.fragment
+def daily_trend(per_day):
+    with st.container(key="panel_ha_trend"):
+        st.markdown(
+            panel_heading("📈 Daily Average Traffic Trend", "Drag to zoom · double-click to reset")
+            + '<div class="ct-legend">'
+            '<span><i class="gold"></i>Daily average</span>'
+            '<span><i class="blue"></i>7-day average</span>'
+            '<span><i class="dot-blue"></i>Busiest day</span></div>',
+            unsafe_allow_html=True,
+        )
+        daily = per_day["mean"].copy()
+        daily.index = pd.to_datetime(daily.index)
+        rolling = daily.rolling(7, min_periods=4).mean()   # smooths weekday / weekend swings
+        busy_day, quiet_day = daily.idxmax(), daily.idxmin()
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=daily.index, y=daily.values, mode="lines", name="Daily average",
+            line=dict(color=GOLD, width=1.4),
+            hovertemplate="Daily average <b>%{y:,.1f}</b> / 15 min<extra></extra>",
+        ))
+        fig.add_trace(go.Scatter(
+            x=rolling.index, y=rolling.values, mode="lines", name="7-day average",
+            line=dict(color=BLUE, width=3, shape="spline", smoothing=0.6),
+            hovertemplate="7-day average <b>%{y:,.1f}</b><extra></extra>",
+        ))
+        highlight_marker(fig, busy_day, daily.max(), f"Busiest · {busy_day:%d %b}")
+        chart_layout(fig, 380, "avg vehicles / 15 min", dict(
+            tickformat="%b %Y", hoverformat="%a %d %b %Y", **SPIKES,
+        ))
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
+
+        # Change between the first and last 30 recorded days.
+        change_html = '<strong>—</strong><small>Need 60+ days to compare</small>'
+        if len(daily) >= 60:
+            first30, last30 = daily.iloc[:30].mean(), daily.iloc[-30:].mean()
+            if first30:
+                change = (last30 - first30) / first30 * 100
+                change_html = (f'<strong class="{"up" if change >= 0 else "down"}">{change:+.0f}%</strong>'
+                               "<small>last 30 days vs first 30 days</small>")
+        st.markdown(
+            '<div class="ct-chart-stats">'
+            f'<div><span>Busiest day</span><strong class="peak">{busy_day:%d %b %Y}</strong><small>{num(daily.max())} vehicles / 15 min</small></div>'
+            f'<div><span>Quietest day</span><strong class="quiet">{quiet_day:%d %b %Y}</strong><small>{num(daily.min())} vehicles / 15 min</small></div>'
+            f'<div><span>Overall average</span><strong>{num(daily.mean())}</strong><small>vehicles / 15 min</small></div>'
+            f"<div><span>Long-term change</span>{change_html}</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+
+daily_trend(per_day)
+
+st.markdown(FOOTER, unsafe_allow_html=True)

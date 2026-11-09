@@ -1,80 +1,63 @@
 /* ================================================================
    Chronos-Traffic public forecast page (page-specific parts only).
-   The 6-hour panel, week outlook and map are in forecast_components.css.
+   Background, red pill button, date/time pill, overview dots and selectboxes
+   are in main.css; the 6-hour panel, week outlook and map in forecast_components.css.
    ================================================================ */
 
 /* ---------- Page chrome: public page, no sidebar or header ---------- */
 [data-testid="stSidebar"],[data-testid="collapsedControl"],[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
-.block-container {padding-top:2rem !important;max-width:1250px;}
+.block-container {padding-top:4rem !important;}
 
 /* ---------- Header ---------- */
-.ct-title {font-size:clamp(2rem,4vw,3.1rem);font-weight:850;letter-spacing:-.045em;color:#D5AE53;margin:0;}
-.ct-subtitle {color:#9BAEC9;margin:0 0 1.5rem;}
-
-/* Back to Home: same deep red pill as Home's Sign In, sized to its text, right-aligned. */
-.st-key-forecast_back_home {margin-left:auto;display:flex;justify-content:flex-end;}
-.st-key-forecast_back_home button {
-  width:auto !important;
-  border-radius:999px !important;
-  background:#7f2837 !important;
-  border:1px solid #b74a5b !important;
-  color:#fff5f5 !important;
-  font-weight:700 !important;
-  min-height:2.5rem;
-  padding:.45rem 1.3rem !important;
-  white-space:nowrap;
-  box-shadow:0 5px 18px rgba(127,40,55,.15);
-  transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease;
+.ct-title {
+  font-size:clamp(2rem,4vw,3.1rem);font-weight:850;letter-spacing:-.045em;margin:0;line-height:1.12;
+  background:var(--ct-gold-gradient);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
-.st-key-forecast_back_home button:hover {
-  background:#a33749 !important;
-  border-color:#ed8290 !important;
-  color:#fff5f5 !important;
-  transform:translateY(-2px);
-  box-shadow:0 9px 22px rgba(163,55,73,.26);
-}
-.st-key-forecast_back_home button:focus-visible {outline:2px solid #f1a7b1 !important;outline-offset:3px;}
+.ct-subtitle {color:#9BAEC9;margin:.2rem 0 0;}
+/* Back to Home pill (style in main.css), right-aligned */
+.st-key-forecast_back_home {margin-left:auto;display:flex;justify-content:flex-end;margin-bottom:.7rem;}
 
-/* ---------- Selected route and selectors ---------- */
-.ct-route-label {font-size:.75rem;letter-spacing:.14em;font-weight:750;color:#9BAEC9;margin:.4rem 0 .55rem;}
-.ct-route-name {font-size:clamp(1rem,2.5vw,2rem);font-weight:780;line-height:1.12;color:#F9FAFB;overflow-wrap:anywhere;letter-spacing:-.035em;}
-.ct-route-heading {font-size:clamp(1.3rem,2vw,1.7rem);font-weight:750;color:#D5AE53;margin:.35rem 0 .85rem;}
-.ct-forecast-date {font-size:.95rem;color:#9BAEC9;margin-bottom:.8rem;}
+/* ---------- Selected route: larger than the admin overview rows ---------- */
+.ct-route-label {font-size:.7rem;letter-spacing:.16em;font-weight:750;color:#f5bd57;margin:.4rem 0 .2rem;}
+.ct-route .ct-ov {gap:.55rem;margin:.6rem 0 .9rem;}
+.ct-route .ct-ov-row {gap:.75rem;}
+.ct-route .ct-ov-dot {flex-basis:10px;height:10px;}
+.ct-route .ct-ov-key {flex-basis:92px;font-size:.68rem;}
+.ct-route .ct-ov-val {font-weight:780;color:#F9FAFB;line-height:1.2;letter-spacing:-.02em;}
+.ct-route .ct-ov-val.location {font-size:clamp(1.15rem,2.1vw,1.6rem);}
+.ct-route .ct-ov-val.direction {font-size:clamp(1.05rem,1.6vw,1.3rem);color:#f5bd57;}
+.ct-forecast-date {font-size:.95rem;color:#9BAEC9;}
 .ct-forecast-date strong {color:#F9FAFB;}
-.ct-clock-pill {display:inline-flex;align-items:center;width:fit-content;border-radius:999px;background:#202C3D;border:1px solid #34445B;color:#F9FAFB;font-size:.9rem;font-weight:650;padding:.5rem 1rem;}
 
-.ct-dataset {color:#9BAEC9;font-size:.9rem;margin:0 0 .45rem;}
-.ct-dataset strong {color:#E5BA5A;font-weight:750;}
-/* Keys include the dataset / location ID, so match by prefix. */
-[class*="st-key-forecast_location"] [data-baseweb="select"],
-[class*="st-key-forecast_direction"] [data-baseweb="select"] {min-height:40px;}
+/* ---------- Dataset + selectors ---------- */
+.ct-dataset {color:#9BAEC9;font-size:1.08rem;margin:0 0 .55rem;}
+.ct-dataset strong {color:#f5bd57;font-weight:780;font-size:1.2rem;}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {min-height:40px;}
 
 @media (max-width:780px) {
-  .ct-route-name {font-size:1.85rem;}
   .ct-dataset-right {margin-top:.6rem;}
 }
 
-/* ---------- Entrance animations for the header area (keyframes in forecast_components.css) ---------- */
-.ct-title,.ct-subtitle,.st-key-forecast_back_home,
-.ct-route-label,.ct-route-name,.ct-route-heading,.ct-forecast-date,.ct-clock-pill,
+/* ---------- Entrance animations ---------- */
+.ct-title,.ct-subtitle,.st-key-forecast_back_home,.ct-clock-wrap,
+.ct-route-label,.ct-ov-row,.ct-forecast-date,
 .ct-dataset-right,[class*="st-key-forecast_location"],[class*="st-key-forecast_direction"] {
   animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
 }
 .ct-subtitle {animation-delay:.08s;}
 .st-key-forecast_back_home {animation-name:ct-fade;animation-delay:.1s;}
+.ct-clock-wrap {animation-delay:.16s;}
 .ct-route-label {animation-delay:.12s;}
-.ct-route-name {animation-delay:.18s;}
-.ct-route-heading {animation-delay:.24s;}
+.ct-ov-row:nth-child(1) {animation-delay:.18s;}
+.ct-ov-row:nth-child(2) {animation-delay:.24s;}
 .ct-forecast-date {animation-delay:.3s;}
-.ct-clock-pill {animation-delay:.36s;}
 .ct-dataset-right {animation-delay:.16s;}
 [class*="st-key-forecast_location"] {animation-delay:.22s;}
 [class*="st-key-forecast_direction"] {animation-delay:.28s;}
 
 @media (prefers-reduced-motion:reduce) {
-  .ct-title,.ct-subtitle,.st-key-forecast_back_home,
-  .ct-route-label,.ct-route-name,.ct-route-heading,.ct-forecast-date,.ct-clock-pill,
+  .ct-title,.ct-subtitle,.st-key-forecast_back_home,.ct-clock-wrap,
+  .ct-route-label,.ct-ov-row,.ct-forecast-date,
   .ct-dataset-right,[class*="st-key-forecast_location"],[class*="st-key-forecast_direction"] {animation:none !important;}
-  .st-key-forecast_back_home button {transition:none !important;}
-  .st-key-forecast_back_home button:hover {transform:none !important;}
 }

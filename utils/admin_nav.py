@@ -1,6 +1,4 @@
 """Admin-only access check and sidebar navigation. Call both at the top of every admin page."""
-import html
-
 import streamlit as st
 
 from utils.styles import load_css
@@ -24,16 +22,18 @@ def require_admin():
         st.stop()
 
 
-def admin_sidebar():
-    """Draw the admin navigation in the sidebar."""
-    load_css("admin_nav.css")
-    user = st.session_state.get("user") or {}
-    name = html.escape(str(user.get("username") or user.get("name") or "Administrator"))
+def admin_sidebar(load_styles=True):
+    """Draw the admin navigation in the sidebar.
+
+    setup_admin_page() already loads admin_nav.css together with the page CSS, so it passes load_styles=False.
+    """
+    if load_styles:
+        load_css("admin_nav.css")
 
     with st.sidebar:
+        # To add your logo later, put <img class="ct-side-logo" src="..."> before the name block.
         st.markdown(
             '<div class="ct-side-brand">'
-            '<div class="ct-side-logo">🚦</div>'
             '<div><div class="ct-side-name">Chronos-Traffic</div>'
             '<div class="ct-side-role">ADMIN PANEL</div></div>'
             "</div>"
@@ -43,11 +43,12 @@ def admin_sidebar():
         for path, label, icon in ADMIN_PAGES:
             st.page_link(path, label=label, icon=icon)
 
-        st.markdown(
-            '<div class="ct-side-user">'
-            f'<div class="ct-side-avatar">{name[:1].upper()}</div>'
-            f'<div><div class="ct-side-user-name">{name}</div>'
-            '<div class="ct-side-user-role"><span></span>Signed in · Admin</div></div>'
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        # App info, pinned to the bottom of the sidebar by admin_nav.css.
+        with st.container(key="ct_side_footer"):
+            st.markdown(
+                '<div class="ct-side-footer">'
+                '<div class="ct-side-version">Version 2.0</div>'
+                '<div class="ct-side-copy">© 2026 Bahria University<br>Computer Science Department</div>'
+                "</div>",
+                unsafe_allow_html=True,
+            )

@@ -2,19 +2,16 @@
    Shared forecast components
    6-hour panel, 7-day outlook and map panel.
    Loaded by the public Traffic Dashboard and the Admin Dashboard,
-   so both pages look and animate the same.
+   so both pages look and animate the same. Theme: classic gold on navy.
    ================================================================ */
 
-@keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
-@keyframes ct-pop {from {opacity:0;transform:scale(.92);}}
-@keyframes ct-fade {from {opacity:0;}}
-
-.ct-section {font-size:1.3rem;font-weight:750;margin:1.4rem 0 .75rem;color:#F9FAFB;}
+/* Keyframes (ct-up, ct-pop, ct-fade), .ct-section and the .ct-head row live in main.css. */
 
 /* ================================================================
    6-hour outlook panel
    ================================================================ */
-.st-key-forecast_interval_panel {background:#202b3b;border:1px solid #36465d;border-radius:28px;padding:25px clamp(14px,2.5vw,32px) 24px;}
+/* Panels share the KPI-card surface: navy gradient, soft border */
+.st-key-forecast_interval_panel {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:28px;padding:25px clamp(14px,2.5vw,32px) 24px;}
 .ct-panel-header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px;}
 .ct-panel-kicker {font-size:.84rem;font-weight:800;letter-spacing:.055em;color:#edf2fa;}
 .ct-panel-hint {font-size:.82rem;color:#9dbbe0;}
@@ -26,7 +23,7 @@
      Softer grey: invert(.8). Original black: delete this filter line. */
   filter:brightness(0) invert(1);}
 .ct-panel-count-row {display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
-.ct-panel-count {font-size:clamp(3.2rem,5vw,4.2rem);font-weight:800;color:#e6b64f;line-height:1.1;letter-spacing:-.05em;}
+.ct-panel-count {font-size:clamp(3.2rem,5vw,4.2rem);font-weight:800;color:#f5bd57;line-height:1.1;letter-spacing:-.05em;}
 .ct-panel-unit {font-size:.85rem;color:#b9c7d8;}
 .ct-panel-status {display:flex;gap:9px;flex-wrap:wrap;font-size:.9rem;font-weight:750;margin-top:5px;}
 .ct-panel-main-time {font-size:.82rem;color:#aebdd1;font-weight:500;}
@@ -37,18 +34,19 @@
 
 .ct-panel-insight {display:flex;gap:10px;align-items:flex-start;margin:6px 0 16px;}
 .ct-insight-icon {font-size:1.3rem;font-weight:800;min-width:24px;}
-.ct-insight-icon.peak {color:#f2ba6c;}
+.ct-insight-icon.peak {color:#f5bd57;}
 .ct-insight-icon.quiet {color:#75e3b1;}
 .ct-insight-label {color:#9eb5d0;font-size:.68rem;font-weight:800;letter-spacing:.07em;}
 .ct-insight-time {color:#f9fafb;font-size:1rem;font-weight:800;margin-top:3px;}
 .ct-insight-detail {color:#b6c8dd;font-size:.73rem;margin-top:3px;line-height:1.4;}
-.ct-panel-rule {height:1px;background:#405066;margin:10px 0 20px;}
+.ct-panel-rule {height:1px;background:#263c58;margin:10px 0 20px;}
 
 /* Pill-shaped interval slots */
 .ct-native-slot {height:150px;max-width:120px;margin:0 auto;padding:16px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:1px solid transparent;border-radius:60px;text-align:center;}
-.ct-native-slot.is-current {background:rgba(217,173,75,.10);border-color:rgba(217,173,75,.58);}
+/* Current slot: lighter navy with a gold outline */
+.ct-native-slot.is-current {background:#1c3150;border-color:rgba(245,189,87,.55);box-shadow:0 6px 18px rgba(0,0,0,.25);}
 .ct-panel-slot-time {font-size:clamp(.65rem,.9vw,.78rem);font-weight:750;color:#b9c9df;white-space:nowrap;}
-.ct-native-slot.is-current .ct-panel-slot-time {color:#e6b64f;}
+.ct-native-slot.is-current .ct-panel-slot-time {color:#fcd34d;}
 .ct-panel-slot-count {color:#f9fafb;font-size:clamp(1.25rem,2vw,1.8rem);font-weight:800;line-height:1.1;}
 .ct-panel-slot-level {border-radius:999px;padding:5px 10px;font-size:.72rem;font-weight:750;min-width:64px;}
 .ct-panel-slot-level.low {background:rgba(45,185,122,.15);color:#75e3b1;}
@@ -84,8 +82,8 @@
   width:46px;height:46px;min-width:46px;min-height:46px;
   padding:0 !important;
   border-radius:50% !important;
-  background:#2b394d;
-  border:1.5px solid #526077;
+  background:#1c3150;
+  border:1.5px solid #34506f;
   color:#f9fafb;
   font-size:0 !important;
   transition:background .2s ease,border-color .2s ease,transform .2s ease;
@@ -103,7 +101,7 @@
           mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12h15M13 5.5l6.5 6.5-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 .st-key-ct_prev_interval button::before {transform:scaleX(-1);}  /* same arrow, flipped */
-.st-key-forecast_interval_panel [data-testid="stButton"] button:hover:not(:disabled) {background:#3a4b65;border-color:#d9ad4b;transform:scale(1.06);}
+.st-key-forecast_interval_panel [data-testid="stButton"] button:hover:not(:disabled) {background:#24406a;border-color:#4b6a92;transform:scale(1.06);}
 .st-key-forecast_interval_panel [data-testid="stButton"] button:disabled {opacity:.25;}
 
 /* ================================================================
@@ -113,40 +111,41 @@
 .ct-week-heading .ct-section {margin:0;}
 .ct-week-heading-note {color:#9cb8d4;font-size:.85rem;white-space:nowrap;}
 .ct-week-description {color:#afc0d6;font-size:.9rem;margin:0 0 15px;line-height:1.45;}
-.ct-week-panel {background:#202b3b;border:1px solid #36465d;border-radius:24px;padding:14px 16px 11px;overflow:hidden;}
+.ct-week-panel {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:24px;padding:14px 16px 11px;overflow:hidden;}
 .ct-week-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;}
-.ct-week-day {min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:14px 4px 15px;border-radius:11px;position:relative;transition:background-color .18s ease;}
-.ct-week-day:hover {background:rgba(159,182,212,.09);}
-.ct-week-day + .ct-week-day::before {content:"";position:absolute;left:0;top:14px;bottom:14px;width:1px;background:#41516a;}
+.ct-week-day {min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:14px 4px 15px;border-radius:14px;position:relative;transition:background-color .2s ease,box-shadow .2s ease;}
+/* Other days: faint lift on hover only */
+.ct-week-day:hover {background:rgba(28,49,80,.55);}
+/* First day = the day being shown: fixed highlight with a gold top line */
+.ct-week-day:first-child,.ct-week-day:first-child:hover {background:#1c3150;box-shadow:inset 0 3px 0 #f5bd57,0 6px 18px rgba(0,0,0,.22);}
+.ct-week-day:first-child .ct-week-weekday,.ct-week-day:first-child .ct-week-date {color:#fcd34d;}
+.ct-week-day + .ct-week-day::before {content:"";position:absolute;left:0;top:14px;bottom:14px;width:1px;background:#2f4562;}
 .ct-week-weekday {font-size:.79rem;color:#9cb8d4;font-weight:650;}
 .ct-week-date {font-size:.84rem;color:#eaf0f7;font-weight:700;white-space:nowrap;}
-.ct-week-count {font-size:clamp(1.3rem,2.1vw,1.9rem);font-weight:800;line-height:1.3;color:#e5b54c;font-variant-numeric:tabular-nums;}
+.ct-week-count {font-size:clamp(1.3rem,2.1vw,1.9rem);font-weight:800;line-height:1.3;color:#f5bd57;font-variant-numeric:tabular-nums;}
 .ct-week-status {font-size:.78rem;font-weight:750;line-height:1.3;white-space:nowrap;}
 .ct-week-low {color:#67dda9;}
 .ct-week-medium {color:#f2ca76;}
 .ct-week-high {color:#ff9ca6;}
 .ct-week-na {color:#91a3bb;}
-.ct-week-footer {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;border-top:1px solid #41516a;margin-top:3px;padding:10px 6px 2px;color:#9cb8d4;font-size:.81rem;line-height:1.35;}
-.ct-week-vehicle {color:#e5b54c;font-size:1rem;line-height:1;}
+.ct-week-footer {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;border-top:1px solid #263c58;margin-top:3px;padding:10px 6px 2px;color:#9cb8d4;font-size:.81rem;line-height:1.35;}
+.ct-week-vehicle {color:#f5bd57;font-size:1rem;line-height:1;}
 .ct-week-footer-dot {color:#64748b;padding:0 2px;}
 .ct-week-clock {font-size:1rem;line-height:1;}
 
 /* ================================================================
    Map panel
    ================================================================ */
-.st-key-traffic_map_panel {background:#202b3b;border:1px solid #36465d;border-radius:24px;padding:22px clamp(14px,2.2vw,28px) 16px;overflow:hidden;}
+.st-key-traffic_map_panel {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:24px;padding:22px clamp(14px,2.2vw,28px) 16px;overflow:hidden;}
 .st-key-traffic_map_panel [data-testid="stIFrame"] {border-radius:15px;overflow:hidden;}
-.ct-map-heading {display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:14px;}
-.ct-map-heading .ct-section {margin:0;}
-.ct-map-heading-note {color:#9cb8d4;font-size:.85rem;}
 .ct-map-details {border-left:1px solid #42516a;padding:3px 0 8px clamp(15px,2vw,28px);min-height:390px;}
-.ct-map-kicker {color:#e5b54c;font-size:.73rem;letter-spacing:.11em;font-weight:800;margin-bottom:16px;}
+.ct-map-kicker {color:#f5bd57;font-size:.73rem;letter-spacing:.11em;font-weight:800;margin-bottom:16px;}
 .ct-map-label {color:#9cb8d4;font-size:.79rem;font-weight:600;margin:12px 0 5px;}
 .ct-map-value {color:#f9fafb;font-size:1.06rem;font-weight:750;line-height:1.35;overflow-wrap:anywhere;}
 .ct-map-road {font-size:1.15rem;}
 .ct-map-direction {font-size:.85rem;color:#b6c8dd;margin-top:3px;}
 .ct-map-separator {height:1px;background:#3d4b60;margin:16px 0;}
-.ct-map-count {color:#e5b54c;font-size:clamp(1.8rem,2.5vw,2.4rem);font-weight:800;line-height:1.25;}
+.ct-map-count {color:#f5bd57;font-size:clamp(1.8rem,2.5vw,2.4rem);font-weight:800;line-height:1.25;}
 .ct-map-count span {color:#b6c8dd;font-size:.76rem;font-weight:500;white-space:nowrap;}
 .ct-map-status {font-size:.9rem;font-weight:750;margin-top:4px;}
 .ct-map-low {color:#67dda9;}
@@ -223,7 +222,7 @@
 @media (max-width:640px) {
   .st-key-traffic_map_panel {padding:16px 12px;}
   .ct-map-details {min-height:0;border-left:0;border-top:1px solid #42516a;padding:18px 2px 4px;}
-  .ct-map-heading-note {font-size:.75rem;}
+  .ct-head-note {font-size:.75rem;}
 }
 @media (max-width:540px) {
   .ct-week-panel {overflow-x:auto;}

@@ -1,21 +1,30 @@
-import streamlit as st
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import plotly.express as px
+import streamlit as st
+import tensorflow as tf
 from PIL import Image
-import os
 
-# Page Settings
-st.set_page_config(
-    page_title="Road Anomaly Detection",
-    page_icon="🚨",
-    layout="wide"
-)
+from utils.admin_ui import setup_admin_page
+from utils.ui import FOOTER
 
-# Load Trained Model
+# Admin page: same setup, login check and sidebar as the other admin pages.
+setup_admin_page("Road Anomaly Detection", "🚨")
+
+ROOT = Path(__file__).resolve().parent.parent
+MODEL_PATH = ROOT / "Models" / "chronos_traffic_model.keras"
+SAMPLE_DIR = ROOT / "Data" / "processed_frames (India)" / "Final_videos"
+
+
+# Load the trained model once and keep it in memory (not on every click).
+@st.cache_resource(show_spinner="Loading the CNN model…")
 def load_model():
-    return tf.keras.models.load_model("Models/chronos_traffic_model.keras")
+    return tf.keras.models.load_model(MODEL_PATH)
+
+
 model = load_model()
 
 # Class Names
@@ -23,7 +32,7 @@ CLASS_NAMES = {0: "✅ Normal Traffic",1: "🚨 Accident",2: "⚠️ Challenging
 
 # Prediction Function
 def predict_image(img):
-    img = img.resize((224,224))
+    img = img.convert("RGB").resize((224, 224))   # PNGs with transparency have 4 channels
     img_array = np.array(img)
     img_array = img_array / 255.0
     img_array = np.expand_dims(img_array, axis=0)
@@ -52,7 +61,8 @@ uploaded_image = None
 # Left: Image Source
 with left:
     st.subheader("📂 Image Source")
-    image_option = st.radio("",["Upload Image", "Sample Dataset"],horizontal=True)
+    image_option = st.radio("Image source", ["Upload Image", "Sample Dataset"], horizontal=True,
+                            label_visibility="collapsed")
     st.markdown("<br>", unsafe_allow_html=True)
 
     if image_option == "Upload Image":
@@ -61,8 +71,11 @@ with left:
             type=["jpg","jpeg","png"],
             label_visibility="collapsed"
         )
+    elif not SAMPLE_DIR.is_dir():
+        st.info("Sample images aren't available on this machine (the Data folder is not included). "
+                "Upload an image instead.")
     else:
-        dataset_path = "Data/processed_frames (India)/Final_videos"
+        dataset_path = str(SAMPLE_DIR)
 
         classes = sorted([
             f for f in os.listdir(dataset_path)
@@ -422,48 +435,4 @@ into real-time traffic monitoring.
 </div>
 """, unsafe_allow_html=True)
 
-st.divider()
-
-st.caption("© 2026 Chronos-Traffic | Bahria University Karachi Campus | Final Year Project Prototype")
-
-# Sidebar
-with st.sidebar:
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style=" text-align:center; color:#94A3B8; line-height:1.2;">
-
-    <div style="
-        font-size:18px;
-        color:white;
-        font-weight:700;
-        margin-top:10px;
-        margin-bottom:5px;">
-        🚦 Chronos-Traffic
-    </div>
-
-    <div style="font-size:14px; margin-bottom:10px;">
-        AI-Driven Spatio-Temporal <br>
-        Traffic Forecasting & Anomaly Detection
-    </div>
-
-    <div style="
-        display:inline-block;
-        background:#1F2937;
-        border:1px solid #334155;
-        border-radius:12px;
-        padding:8px 18px;
-        color:#60A5FA;
-        font-weight:600;
-        font-size:14px;
-        margin-bottom:10px;">
-        Version 1.0
-    </div>
-
-    <div style="font-size:13px;">
-        © 2026 Bahria University<br>
-        Computer Science Department
-    </div>
-
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(FOOTER, unsafe_allow_html=True)

@@ -1,5 +1,4 @@
 from pathlib import Path
-import sqlite3
 import pandas as pd
 
 from backend.database import get_connection, create_database

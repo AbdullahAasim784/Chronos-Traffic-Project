@@ -1,10 +1,12 @@
 streamlit
 pandas
 numpy
-tensorflow
-folium
 plotly
+folium
 streamlit_folium
+requests
+fastapi
+uvicorn
+tensorflow
 pillow
 pwdlib[argon2]
-PyJWT

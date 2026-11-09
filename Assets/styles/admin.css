@@ -1,0 +1,209 @@
+/* ================================================================
+   Chronos-Traffic | shared ADMIN styles (all admin pages).
+   Loaded after main.css. Page-specific bits live in admin_dashboard.css,
+   model_performance.css and historical_analysis.css.
+   Gold = brand / structure; blue = chart highlights; status colours unchanged.
+   ================================================================ */
+
+/* ---------- Page chrome ---------- */
+[data-testid="stHeader"] {background:transparent !important;}
+[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
+.block-container {padding-top:5.2rem !important;padding-bottom:1.5rem !important;}
+
+/* ---------- Header ---------- */
+.ct-admin-eyebrow {font-size:.7rem;font-weight:750;letter-spacing:.16em;color:#f5bd57;}
+.ct-admin-heading {
+  font-size:clamp(1.9rem,3.2vw,2.6rem);
+  font-weight:850;
+  letter-spacing:-.04em;
+  line-height:1.12;
+  margin:.3rem 0 .35rem;
+  background:var(--ct-gold-gradient);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.ct-admin-welcome {color:#9fb3cc;font-size:.92rem;}
+.ct-admin-welcome strong {color:#e6f1ff;}
+/* Log Out pill (style in main.css) pinned to the top-right */
+.st-key-admin_top_logout {margin-left:auto;width:fit-content !important;margin-bottom:.7rem;}
+
+/* ---------- KPI cards: one grid, equal size ---------- */
+.ct-kpi-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;align-items:stretch;}
+.ct-admin-kpi {
+  display:flex;flex-direction:column;
+  min-height:190px;
+  border-radius:20px;
+  padding:1.15rem 1.2rem 1.1rem;
+  border:1px solid #263c58;
+  background:linear-gradient(150deg,#14263f 0%,#111d31 100%);
+  box-shadow:0 8px 28px rgba(0,0,0,.18);
+  position:relative;overflow:hidden;
+  transition:border-color .25s ease,transform .25s ease,box-shadow .25s ease;
+}
+.ct-admin-kpi::before {content:"";position:absolute;left:0;top:0;right:0;height:3px;background:linear-gradient(90deg,#fde68a,#f5bd57,#d97706);opacity:.6;transition:opacity .25s ease;}
+.ct-admin-kpi:hover {border-color:#f5bd57;transform:translateY(-4px);box-shadow:0 14px 32px rgba(0,0,0,.28),0 0 0 1px rgba(245,189,87,.08);}
+.ct-admin-kpi:hover::before {opacity:1;}
+.ct-kpi-head {display:flex;align-items:center;gap:.55rem;}
+/* Icon: plain gold line icon, no box */
+.ct-kpi-icon {flex:0 0 auto;display:grid;place-items:center;font-size:1.4rem;line-height:1;color:#f5bd57;background:none;border:0;}
+.ct-kpi-icon svg {display:block;width:1.45rem;height:1.45rem;transition:transform .25s ease;}
+.ct-admin-kpi:hover .ct-kpi-icon svg {transform:scale(1.12);}
+.ct-admin-kpi-label {font-size:.68rem;font-weight:750;letter-spacing:.08em;color:#a9c6e8;}
+.ct-admin-kpi-value {font-size:clamp(1.4rem,2vw,1.9rem);font-weight:800;margin-top:.85rem;line-height:1.15;color:#f4f8ff;font-variant-numeric:tabular-nums;}
+.ct-admin-kpi-value.gold {color:#f5bd57;}
+.ct-admin-kpi-desc {color:#94a8c2;font-size:.74rem;line-height:1.45;margin-top:auto;padding-top:.6rem;}
+.ct-admin-kpi-empty {margin-top:.9rem;font-size:.8rem;color:#9daec5;}
+.ct-unit {font-size:.78rem;font-weight:650;color:#94a8c2;margin-left:.35rem;letter-spacing:0;}
+
+/* ---------- Panels: every container keyed "panel_..." gets the card surface ---------- */
+[class*="st-key-panel_"] {
+  background:linear-gradient(150deg,#14263f 0%,#111d31 100%);
+  border:1px solid #263c58;border-radius:24px;
+  box-shadow:0 8px 28px rgba(0,0,0,.18);
+  padding:22px clamp(14px,2.2vw,28px) 28px;
+}
+/* Right-aligned segmented control (Hourly / 15-min) */
+[class*="st-key-res_"] {margin-left:auto;width:fit-content !important;}
+
+/* ---------- Segmented controls: ONE rounded box, options split by a thin | divider ---------- */
+[data-testid="stButtonGroup"] [role="radiogroup"] {
+  display:inline-flex !important;flex-wrap:nowrap !important;gap:0 !important;align-items:center;
+  padding:3px;border-radius:999px;background:#132036;border:1px solid #263c58;width:fit-content;
+}
+[data-testid="stButtonGroup"] button {
+  position:relative;
+  border:0 !important;border-radius:999px !important;background:transparent !important;
+  color:#b6c8dd !important;font-weight:650 !important;padding:.35rem 1rem !important;min-height:2.1rem;
+  box-shadow:none !important;transition:background .2s ease,color .2s ease;
+}
+[data-testid="stButtonGroup"] button + button::before {
+  content:"";position:absolute;left:0;top:25%;bottom:25%;width:1px;background:#34506f;
+}
+[data-testid="stButtonGroup"] button:hover {color:#eef4ff !important;background:rgba(255,255,255,.04) !important;}
+[data-testid="stButtonGroup"] button[aria-checked="true"] {background:rgba(245,189,87,.14) !important;color:#fcd34d !important;}
+[data-testid="stButtonGroup"] button[aria-checked="true"]::before,
+[data-testid="stButtonGroup"] button[aria-checked="true"] + button::before {opacity:0;}
+
+/* ---------- Stat boxes under charts ---------- */
+.ct-chart-stats {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-top:.4rem;margin-bottom:.35rem;}
+.ct-chart-stats > div {display:flex;flex-direction:column;gap:.15rem;padding:.7rem .9rem;border-radius:14px;background:#132036;border:1px solid #263c58;}
+.ct-chart-stats span {font-size:.66rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;text-transform:uppercase;}
+.ct-chart-stats strong {font-size:1.15rem;font-weight:800;color:#f4f8ff;}
+.ct-chart-stats strong.peak {color:#60a5fa;}
+.ct-chart-stats strong.quiet {color:#a5b4fc;}
+.ct-chart-stats strong.gold {color:#f5bd57;}
+.ct-chart-stats strong.up {color:#75e3b1;}
+.ct-chart-stats strong.down {color:#ff9ca6;}
+.ct-chart-stats small {font-size:.7rem;color:#93a8c3;}
+
+/* ---------- Summary paragraph card (Model Performance, Historical Analysis) ---------- */
+.ct-summary {
+  display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:1.6rem;align-items:center;
+  border-radius:20px;padding:1.25rem 1.4rem;margin-bottom:1rem;
+  border:1px solid #263c58;
+  background:linear-gradient(150deg,#14263f 0%,#111d31 100%);
+  box-shadow:0 8px 28px rgba(0,0,0,.18);
+  position:relative;overflow:hidden;
+}
+.ct-summary::before {content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,#fde68a,#f5bd57,#d97706);opacity:.85;}
+.ct-summary p {margin:.45rem 0 0;color:#a9bdd6;font-size:.95rem;line-height:1.75;}
+.ct-summary strong {color:#eef4ff;font-weight:750;}
+.ct-hl {color:#f5bd57;font-weight:800;}
+.ct-hl.bright {color:#fcd34d;}
+.ct-hl.blue {color:#60a5fa;}
+/* Right side: label + big value + meter + legend */
+.ct-summary-side {display:flex;flex-direction:column;gap:.35rem;}
+.ct-summary-top {display:flex;align-items:baseline;justify-content:space-between;gap:.5rem;}
+.ct-summary-label {font-size:.66rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;}
+.ct-summary-value {font-size:1.6rem;font-weight:800;color:#f4f8ff;font-variant-numeric:tabular-nums;}
+.ct-summary-legend {display:flex;justify-content:space-between;font-size:.72rem;color:#93a8c3;}
+.ct-summary-legend b {color:#dbe7f7;font-weight:750;}
+
+/* ---------- Meter bar ---------- */
+.ct-meter {height:8px;border-radius:999px;overflow:hidden;background:#1d2c44;margin-top:.7rem;}
+.ct-meter span {display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#fde68a,#f5bd57,#d97706);
+  animation:ct-meter-grow 1s cubic-bezier(.22,.61,.36,1) .5s backwards;transform-origin:left;}
+.ct-meter.blue span {background:linear-gradient(90deg,#93c5fd,#60a5fa,#3b82f6);}
+@keyframes ct-meter-grow {from {transform:scaleX(0);}}
+
+/* ---------- Legend chips in chart headings (colours set per page) ---------- */
+.ct-legend {display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin:.15rem 0 .6rem;font-size:.75rem;color:#b6c8dd;}
+.ct-legend span {display:inline-flex;align-items:center;gap:.45rem;}
+.ct-legend i {display:inline-block;width:18px;height:3px;border-radius:999px;}
+.ct-legend i.gold {background:#f5bd57;}
+.ct-legend i.blue {background:#60a5fa;}
+.ct-legend i.dot-blue {width:9px;height:9px;border-radius:50%;background:#60a5fa;}
+.ct-legend i.dot-red {width:9px;height:9px;border-radius:50%;background:#f17b83;}
+.ct-legend i.band {height:10px;border-radius:3px;background:rgba(96,165,250,.22);border:1px solid rgba(96,165,250,.45);}
+
+/* ---------- Small text under headings ---------- */
+.ct-subhead {font-size:.68rem;letter-spacing:.12em;font-weight:750;color:#a9c6e8;margin:.2rem 0 .1rem;}
+.ct-subnote {font-size:.76rem;color:#93a8c3;margin:.1rem 0 .6rem;}
+
+/* ---------- Data tables (sticky header, scrolling, row hover) ---------- */
+.ct-table-wrap {
+  max-height:430px;overflow-y:auto;margin:.2rem 0 .5rem;
+  border:1px solid #263c58;border-radius:16px;background:rgba(11,18,32,.35);
+  scrollbar-width:thin;scrollbar-color:#34506f transparent;
+}
+.ct-table {width:100%;border-collapse:collapse;font-size:.84rem;margin:0 !important;}
+.ct-table th {
+  position:sticky;top:0;z-index:1;background:#132036;text-align:left;
+  font-size:.64rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;padding:.75rem .9rem;border-bottom:1px solid #263c58;
+}
+.ct-table td {padding:.65rem .9rem;color:#dbe7f7;border-bottom:1px solid rgba(38,60,88,.6);font-variant-numeric:tabular-nums;}
+.ct-table tr:last-child td {border-bottom:0;}
+.ct-table tbody tr {transition:background .2s ease;animation:ct-fade .4s ease backwards;}
+.ct-table tbody tr:nth-child(-n+12) {animation-delay:calc(var(--i,0) * 40ms + .2s);}
+.ct-table tbody tr:hover {background:rgba(245,189,87,.05);}
+/* Cell with a small bar and its number */
+.ct-tbar {display:flex;align-items:center;gap:.7rem;}
+.ct-tbar .ct-meter {flex:1;min-width:60px;margin:0;height:6px;}
+.ct-tbar b {min-width:2.3em;text-align:right;font-weight:700;}
+
+/* Empty state */
+.ct-empty {padding:2.2rem 1rem;text-align:center;border:1px dashed #2f4562;border-radius:16px;background:rgba(245,189,87,.03);color:#93a8c3;font-size:.86rem;}
+.ct-empty b {display:block;color:#e6f1ff;font-size:.98rem;margin-bottom:.25rem;}
+
+/* ---------- Entrance animations ---------- */
+.ct-admin-eyebrow,.ct-admin-heading,.ct-admin-welcome,.st-key-admin_top_logout,.ct-clock-wrap,
+.ct-ov-row,[data-testid="stSelectbox"],.ct-admin-kpi,.ct-summary,[class*="st-key-panel_"] {
+  animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
+}
+.ct-admin-heading {animation-delay:.06s;}
+.ct-admin-welcome {animation-delay:.12s;}
+.st-key-admin_top_logout {animation-name:ct-fade;animation-delay:.1s;}
+.ct-clock-wrap {animation-delay:.16s;}
+.ct-ov-row:nth-child(1) {animation-delay:.2s;}
+.ct-ov-row:nth-child(2) {animation-delay:.26s;}
+.ct-ov-row:nth-child(3) {animation-delay:.32s;}
+[data-testid="stSelectbox"] {animation-delay:.24s;}
+.ct-summary {animation-delay:.3s;}
+.ct-admin-kpi:nth-child(1) {animation-delay:.36s;}
+.ct-admin-kpi:nth-child(2) {animation-delay:.44s;}
+.ct-admin-kpi:nth-child(3) {animation-delay:.52s;}
+.ct-admin-kpi:nth-child(4) {animation-delay:.6s;}
+[class*="st-key-panel_"] {animation-delay:.8s;}
+/* Panels further down animate as they scroll into view */
+@supports (animation-timeline: view()) {
+  [class*="st-key-panel_"] {animation:ct-up linear backwards;animation-timeline:view();animation-range:entry 0% cover 20%;}
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1000px) {
+  .ct-kpi-grid,.ct-chart-stats {grid-template-columns:repeat(2,minmax(0,1fr));}
+  .ct-summary {grid-template-columns:1fr;gap:1rem;}
+}
+@media (max-width:760px) {
+  .ct-table-wrap {overflow-x:auto;}
+  .ct-table {min-width:560px;}
+}
+@media (max-width:640px) {
+  .ct-kpi-grid {grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .ct-admin-eyebrow,.ct-admin-heading,.ct-admin-welcome,.st-key-admin_top_logout,.ct-clock-wrap,
+  .ct-ov-row,[data-testid="stSelectbox"],.ct-admin-kpi,.ct-summary,[class*="st-key-panel_"],
+  .ct-meter span,.ct-table tbody tr {animation:none !important;}
+  .ct-admin-kpi,.ct-kpi-icon svg,.ct-table tbody tr {transition:none !important;}
+  .ct-admin-kpi:hover {transform:none !important;}
+}

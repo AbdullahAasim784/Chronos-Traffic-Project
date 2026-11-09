@@ -6,33 +6,9 @@
 [data-testid="stSidebar"],[data-testid="stSidebarNav"],[data-testid="collapsedControl"],
 [data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
 
-/* Soft blue glow behind the card */
-.stApp {background:radial-gradient(900px 520px at 50% 32%,rgba(59,130,246,.11),transparent 62%),#0b1220;}
+/* Background (navy + soft blue glow) and the red Back to Home pill are in main.css */
 
-.block-container {max-width:1300px !important;padding-top:1.2rem !important;padding-bottom:1rem !important;}
-
-/* ---------- Back to Home: same red pill as the other public pages ---------- */
-.st-key-back_home button {
-  width:auto !important;
-  border-radius:999px !important;
-  background:#7f2837 !important;
-  border:1px solid #b74a5b !important;
-  color:#fff5f5 !important;
-  font-weight:700 !important;
-  min-height:2.5rem;
-  padding:.45rem 1.3rem !important;
-  white-space:nowrap;
-  box-shadow:0 5px 18px rgba(127,40,55,.15);
-  transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease;
-}
-.st-key-back_home button:hover {
-  background:#a33749 !important;
-  border-color:#ed8290 !important;
-  color:#fff5f5 !important;
-  transform:translateY(-2px);
-  box-shadow:0 9px 22px rgba(163,55,73,.26);
-}
-.st-key-back_home button:focus-visible {outline:2px solid #f1a7b1 !important;outline-offset:3px;}
+.block-container {max-width:1300px !important;padding-top:2.2rem !important;padding-bottom:1rem !important;}
 
 /* ---------- Centered column ---------- */
 .st-key-signin_wrap {
@@ -51,17 +27,17 @@
   width:68px;height:68px;margin:0 auto .9rem;border-radius:50%;
   display:grid;place-items:center;
   background:linear-gradient(145deg,#1b2b44,#132034);
-  border:1px solid rgba(213,171,76,.45);
-  box-shadow:0 0 0 6px rgba(213,171,76,.06),0 10px 26px rgba(0,0,0,.35);
+  border:1px solid rgba(245,189,87,.45);
+  box-shadow:0 0 0 6px rgba(245,189,87,.06),0 10px 26px rgba(0,0,0,.35);
   animation:ct-glow 3.2s ease-in-out infinite;
 }
 @keyframes ct-glow {
-  0%,100% {box-shadow:0 0 0 6px rgba(213,171,76,.06),0 10px 26px rgba(0,0,0,.35);}
-  50% {box-shadow:0 0 0 10px rgba(213,171,76,.10),0 10px 26px rgba(0,0,0,.35);}
+  0%,100% {box-shadow:0 0 0 6px rgba(245,189,87,.06),0 10px 26px rgba(0,0,0,.35);}
+  50% {box-shadow:0 0 0 10px rgba(245,189,87,.10),0 10px 26px rgba(0,0,0,.35);}
 }
 /* Lock drawn as an SVG shape, coloured gold */
 .signin-lock {
-  width:30px;height:30px;background-color:#f0c96b;
+  width:30px;height:30px;background-color:#f5bd57;
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3Ccircle cx='12' cy='15.5' r='1.2'/%3E%3C/svg%3E") center/contain no-repeat;
           mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.5'/%3E%3Cpath d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/%3E%3Ccircle cx='12' cy='15.5' r='1.2'/%3E%3C/svg%3E") center/contain no-repeat;
 }
@@ -70,7 +46,7 @@
   font-weight:850;
   letter-spacing:-.04em;
   line-height:1.15;
-  background:linear-gradient(110deg,#b9892d 0%,#f3d381 45%,#d2a044 100%);
+  background:var(--ct-gold-gradient);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
 .signin-sub {margin-top:.35rem;color:#a6b1c2;font-size:.95rem;letter-spacing:.02em;}
@@ -118,7 +94,7 @@
   padding-right:.9rem !important;
   transition:color .2s ease;
 }
-[data-testid="stForm"] [data-testid="stTextInput"] button:hover {color:#f0c96b !important;}
+[data-testid="stForm"] [data-testid="stTextInput"] button:hover {color:#f5bd57 !important;}
 /* Hide "Press Enter to submit form" hints */
 [data-testid="InputInstructions"] {display:none !important;}
 
@@ -155,5 +131,5 @@
 }
 @media (prefers-reduced-motion:reduce) {
   .st-key-signin_wrap,.signin-badge {animation:none !important;}
-  .st-key-back_home button,[data-testid="stForm"] [data-testid="stFormSubmitButton"] button {transition:none !important;transform:none !important;}
+  [data-testid="stForm"] [data-testid="stFormSubmitButton"] button {transition:none !important;transform:none !important;}
 }

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import sqlite3
 from contextlib import contextmanager
@@ -68,10 +68,54 @@ def forecast_dashboard(direction_id: int = Query(..., ge=1), reference: str = Qu
                                  WHERE direction_id=? AND datetime<=? AND datetime>=substr(?,1,10)||' 00:00:00'
                                  ORDER BY datetime DESC LIMIT 1''', (direction_id, reference, reference)).fetchone()
         # Small date-bounded result, never read the full database into the UI.
-        from datetime import timedelta
         end = (reference_dt + timedelta(days=7, hours=1)).strftime('%Y-%m-%d %H:%M:%S')
         future = records(con.execute('''SELECT datetime, predicted_count, traffic_percentage, congestion,
                                        yhat_lower, yhat_upper FROM forecasts
                                        WHERE direction_id=? AND datetime>=? AND datetime<=? ORDER BY datetime''',
                                      (direction_id, reference, end)))
         return {'location': dict(location), 'reference': reference, 'observed': dict(current) if current else None, 'forecasts': future}
+
+
+# ==========================================
+# MODEL PERFORMANCE ENDPOINTS
+# ==========================================
+
+@app.get('/model-metrics')
+def model_metrics(direction_id: int = Query(..., ge=1)):
+    """All stored evaluation results (MAE / RMSE / R2 ...) for one direction."""
+    with db() as con:
+        return records(con.execute('''SELECT evaluation_type, evaluation_start, evaluation_end,
+                                             actual_records, matched_records, mae, rmse, r2_score
+                                      FROM model_metrics WHERE direction_id = ?
+                                      ORDER BY evaluation_type''', (direction_id,)))
+
+@app.get('/model-metrics/summary')
+def model_metrics_summary(dataset_id: int = Query(..., ge=1), evaluation_type: str | None = None):
+    """Metrics for every direction in a dataset, used for the location comparison table."""
+    sql = '''SELECT ld.direction_id, l.location_name, ld.heading, m.evaluation_type,
+                    m.matched_records, m.mae, m.rmse, m.r2_score
+             FROM model_metrics m
+             JOIN location_directions ld ON ld.direction_id = m.direction_id
+             JOIN locations l ON l.location_id = ld.location_id
+             WHERE l.dataset_id = ?'''
+    params = [dataset_id]
+    if evaluation_type:
+        sql += ' AND m.evaluation_type = ?'
+        params.append(evaluation_type)
+    sql += ' ORDER BY m.mae'
+    with db() as con:
+        return records(con.execute(sql, params))
+
+@app.get('/validation')
+def validation(direction_id: int = Query(..., ge=1), evaluation_type: str | None = None):
+    """Timestamp-level actual vs predicted rows from forecast_validation."""
+    sql = '''SELECT datetime, evaluation_type, actual, predicted, min_predicted, max_predicted,
+                    error, absolute_error, status
+             FROM forecast_validation WHERE direction_id = ?'''
+    params = [direction_id]
+    if evaluation_type:
+        sql += ' AND evaluation_type = ?'
+        params.append(evaluation_type)
+    sql += ' ORDER BY datetime'
+    with db() as con:
+        return records(con.execute(sql, params))

@@ -1,4 +1,7 @@
-
+# Large local data: keep out of GitHub (share separately)
 Data/
+*.db
 
-Data/
+# Python cache files
+__pycache__/
+*.pyc

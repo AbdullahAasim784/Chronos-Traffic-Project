@@ -1,0 +1,48 @@
+/* ================================================================
+   Chronos-Traffic | Historical Analysis (page-specific parts only).
+   Summary card, meters, legend, panels, tables and empty state are shared in admin.css.
+   ================================================================ */
+
+/* ---------- Mini weekday bars inside the "busiest day" card ---------- */
+.ct-ha-week {display:grid;grid-template-columns:repeat(7,1fr);gap:4px;align-items:end;height:38px;margin-top:.7rem;}
+.ct-ha-week span {display:block;border-radius:4px 4px 2px 2px;background:rgba(148,163,184,.28);
+  animation:ct-ha-rise .8s cubic-bezier(.22,.61,.36,1) backwards;transform-origin:bottom;}
+.ct-ha-week span.top {background:#f5bd57;}
+.ct-ha-week-labels {display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:3px;font-size:.58rem;color:#7f97b6;text-align:center;letter-spacing:.04em;}
+@keyframes ct-ha-rise {from {transform:scaleY(0);}}
+.ct-ha-week span:nth-child(1) {animation-delay:.55s;} .ct-ha-week span:nth-child(2) {animation-delay:.6s;}
+.ct-ha-week span:nth-child(3) {animation-delay:.65s;} .ct-ha-week span:nth-child(4) {animation-delay:.7s;}
+.ct-ha-week span:nth-child(5) {animation-delay:.75s;} .ct-ha-week span:nth-child(6) {animation-delay:.8s;}
+.ct-ha-week span:nth-child(7) {animation-delay:.85s;}
+
+/* ---------- Daily pattern controls ---------- */
+/* Date picker: same look as the selectors */
+[data-testid="stDateInput"] [data-baseweb="input"] {border-radius:12px;background:#132036;border-color:#263c58;transition:border-color .2s ease;}
+[data-testid="stDateInput"] [data-baseweb="input"]:hover {border-color:#f5bd57;}
+/* "Data available" pill */
+.ct-ha-range {display:inline-flex;align-items:center;gap:.6rem;padding:.5rem 1rem;border-radius:999px;background:#132036;border:1px solid #263c58;color:#b6c8dd;font-size:.8rem;font-weight:600;white-space:nowrap;animation:ct-fade .5s ease .8s backwards;}
+.ct-ha-range b {color:#eef4ff;font-weight:750;}
+.ct-ha-range i {font-style:normal;color:#f5bd57;}
+/* Partial-day note (only when a day has fewer than 96 intervals) */
+.ct-ha-partial {display:flex;align-items:center;gap:.5rem;margin:.4rem 0 .2rem;padding:.5rem .8rem;border-radius:10px;width:fit-content;
+  background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.22);color:#a9bdd6;font-size:.78rem;animation:ct-fade .5s ease .8s backwards;}
+.ct-ha-partial b {color:#eef4ff;}
+.ct-ha-partial i {font-style:normal;color:#60a5fa;}
+
+/* ---------- Records table ---------- */
+.ct-ha-table td {padding:.6rem .9rem;}
+.ct-ha-table td:first-child {width:22%;color:#eef4ff;font-weight:600;white-space:nowrap;}
+/* Download button: gold outline pill */
+.st-key-ha_download {margin-left:auto;width:fit-content !important;}
+.st-key-ha_download button {
+  border-radius:999px !important;background:rgba(245,189,87,.08) !important;
+  border:1px solid rgba(245,189,87,.4) !important;color:#f5bd57 !important;font-weight:700 !important;
+  transition:background .2s ease,transform .2s ease,border-color .2s ease;
+}
+.st-key-ha_download button:hover {background:rgba(245,189,87,.16) !important;border-color:#f5bd57 !important;transform:translateY(-2px);}
+
+@media (prefers-reduced-motion:reduce) {
+  .ct-ha-week span,.ct-ha-range,.ct-ha-partial {animation:none !important;}
+  .st-key-ha_download button {transition:none !important;}
+  .st-key-ha_download button:hover {transform:none !important;}
+}

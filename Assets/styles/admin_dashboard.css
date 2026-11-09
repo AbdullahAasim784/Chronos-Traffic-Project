@@ -1,16 +1,14 @@
-/* ================================================================
-   Chronos-Traffic admin pages
-   Admin accent: teal (#2dd4bf) to sky blue (#38bdf8), so admin pages read
-   as a separate console. Shared forecast panels keep the brand gold.
-   ================================================================ */
+/* ============================
+ Chronos-Traffic admin pages
+ ============================== */ 
 
-/* ---------- Page base ---------- */
+/* Page base */
 .stApp {background:radial-gradient(1100px 520px at 70% -10%,rgba(45,212,191,.07),transparent 60%),#0b1220;color:#eef4ff;}
 [data-testid="stHeader"] {background:transparent !important;}
 [data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
 .block-container {max-width:1250px !important;padding-top:2.2rem !important;padding-bottom:1.5rem !important;}
 
-/* ---------- Header ---------- */
+/* Header */
 .ct-admin-eyebrow {font-size:.7rem;font-weight:750;letter-spacing:.16em;color:#5eead4;}
 .ct-admin-heading {
   font-size:clamp(1.9rem,3.2vw,2.6rem);
@@ -24,7 +22,7 @@
 .ct-admin-welcome {color:#9fb3cc;font-size:.92rem;}
 .ct-admin-welcome strong {color:#e6f1ff;}
 
-/* Log Out: same red pill as the public pages, pinned to the top-right */
+/* Log Out Button */
 .st-key-admin_top_logout {margin-left:auto;width:fit-content !important;margin-bottom:.7rem;}
 .st-key-admin_top_logout button {
   width:auto !important;
@@ -52,7 +50,7 @@
 .ct-admin-clock {display:inline-flex;align-items:center;gap:.8rem;padding:.6rem 1.15rem;border-radius:999px;background:#132036;border:1px solid #263c58;color:#dbe7f7;font-size:1.02rem;font-weight:650;white-space:nowrap;}
 .ct-clock-sep {width:1px;height:1.1rem;background:#34506f;}
 
-/* ---------- Traffic overview: dot before each line ---------- */
+/* Traffic overview */
 .ct-ov {display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;}
 .ct-ov-row {display:flex;align-items:center;gap:.65rem;min-width:0;}
 .ct-ov-dot {flex:0 0 9px;height:9px;border-radius:50%;}
@@ -66,7 +64,7 @@
 [data-testid="stSelectbox"] [data-baseweb="select"] > div {border-radius:12px;background:#132036;border-color:#263c58;transition:border-color .2s ease;}
 [data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {border-color:#2dd4bf;}
 
-/* ---------- KPI cards: one grid, equal size ---------- */
+/* KPI cards */
 .ct-kpi-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;align-items:stretch;}
 .ct-admin-kpi {
   display:flex;flex-direction:column;
@@ -113,7 +111,7 @@
 
 .ct-admin-caption {color:#8ea3bf;font-size:.82rem;margin:1.6rem 0 .7rem;}
 
-/* ---------- Anomaly alerts (next to the map) ---------- */
+/* Anomaly alerts*/
 .ct-alerts {border-left:1px solid #42516a;padding:3px 0 6px clamp(14px,1.8vw,24px);min-height:390px;display:flex;flex-direction:column;}
 .ct-alerts-head {display:flex;align-items:center;gap:.55rem;margin-bottom:.9rem;}
 .ct-alerts-title {font-size:.73rem;letter-spacing:.11em;font-weight:800;color:#5eead4;}
@@ -134,7 +132,7 @@
 .ct-alerts-empty-title {font-weight:750;color:#e6f1ff;font-size:.95rem;}
 .ct-alerts-empty-text {font-size:.74rem;color:#93a8c3;line-height:1.5;max-width:240px;}
 
-/* ---------- Forecast chart panel ---------- */
+/* Forecast chart panel */
 .st-key-admin_chart_panel {background:#16233a;border:1px solid #2a3f5c;border-radius:24px;padding:22px clamp(14px,2.2vw,28px) 18px;}
 .st-key-admin_graph_res {margin-left:auto;width:fit-content !important;}
 .st-key-admin_chart_panel [data-testid="stButtonGroup"] button {border-radius:999px !important;}
@@ -146,7 +144,7 @@
 .ct-chart-stats strong.quiet {color:#5eead4;}
 .ct-chart-stats small {font-size:.7rem;color:#93a8c3;}
 
-/* ---------- Entrance animations (keyframes in forecast_components.css) ---------- */
+/* Entrance animations */
 .ct-admin-eyebrow,.ct-admin-heading,.ct-admin-welcome,.st-key-admin_top_logout,.ct-admin-clock-wrap,
 .ct-ov-row,[data-testid="stSelectbox"],.ct-admin-kpi,.ct-admin-caption,.st-key-admin_chart_panel {
   animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
@@ -169,7 +167,7 @@
   .st-key-admin_chart_panel {animation:ct-up linear backwards;animation-timeline:view();animation-range:entry 0% cover 20%;}
 }
 
-/* ---------- Responsive ---------- */
+/* Responsive */
 @media (max-width:1000px) {
   .ct-kpi-grid,.ct-chart-stats {grid-template-columns:repeat(2,minmax(0,1fr));}
 }

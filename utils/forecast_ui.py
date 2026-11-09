@@ -47,13 +47,25 @@ def clock(dt):
     return dt.strftime("%I:%M %p").lstrip("0")
 
 
-def reference_time(first_forecast):
-    """Earliest forecast date for a direction, at the next Karachi 15-minute slot."""
+def reference_time(first_forecast, available=None):
+    """Earliest forecast date for a direction, at the next Karachi 15-minute slot.
+
+    If `available` (a set/dict of forecast datetimes) is given, the date moves forward
+    until a forecast exists at that clock time. This stops a road whose first forecast
+    day starts late (e.g. 11 PM) from showing "Unavailable" everywhere.
+    """
     now = datetime.now(ZoneInfo("Asia/Karachi"))
     next_slot = now.replace(second=0, microsecond=0) + timedelta(minutes=15 - now.minute % 15)
     reference = datetime.combine(first_forecast.date(), next_slot.time())
     if next_slot.date() != now.date():  # 23:45+ rolls over to the next day
         reference += timedelta(days=1)
+    if available:
+        for _ in range(14):  # look ahead at most two weeks
+            if reference in available:
+                break
+            reference += timedelta(days=1)
+        else:
+            reference = datetime.combine(first_forecast.date(), next_slot.time())
     return reference, now
 
 

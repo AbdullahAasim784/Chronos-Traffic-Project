@@ -15,6 +15,7 @@ from utils.forecast_ui import (
     reference_time, six_hour_trend, week_outlook,
 )
 from utils.styles import load_css
+from utils.ui import FOOTER, clock_pill
 
 st.set_page_config(page_title="Traffic Forecast | Chronos-Traffic", page_icon="🚦", layout="wide")
 load_css("main.css", "forecast_components.css", "forecast.css")
@@ -29,9 +30,9 @@ def fetch(path, **params):
 
 
 # =================================================================
-# Header
+# Header: title left; Back to Home and the date / time pill right
 # =================================================================
-header_left, header_right = st.columns([5, 1.5], vertical_alignment="center")
+header_left, header_right = st.columns([3, 2], vertical_alignment="top")
 with header_left:
     st.markdown(
         '<div class="ct-title">Traffic Forecast</div>'
@@ -41,6 +42,8 @@ with header_left:
 with header_right:
     if st.button("← Back to Home", key="forecast_back_home"):
         st.switch_page("Home.py")
+    st.markdown(clock_pill(), unsafe_allow_html=True)
+st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
 
 
 # =================================================================
@@ -105,27 +108,36 @@ if not range_info.get("start") or not range_info.get("end"):
     st.info("No forecasts for this road and direction.")
     st.stop()
 
-reference, now_clock = reference_time(datetime.fromisoformat(range_info["start"]))
+first_forecast = datetime.fromisoformat(range_info["start"])
+reference, _ = reference_time(first_forecast)
+
+
+def load_dashboard(ref):
+    data = fetch("/forecast-dashboard", direction_id=direction_id, reference=ref.strftime("%Y-%m-%d %H:%M:%S"))
+    return data, {datetime.fromisoformat(x["datetime"]): x for x in data["forecasts"]}
+
 
 try:
-    data = fetch(
-        "/forecast-dashboard",
-        direction_id=direction_id,
-        reference=reference.strftime("%Y-%m-%d %H:%M:%S"),
-    )
+    data, forecast_by_dt = load_dashboard(reference)
+    # If the first forecast day has nothing at this clock time (e.g. it starts at 11 PM),
+    # move to the first day that does, so the panels don't open on "Unavailable".
+    if reference not in forecast_by_dt:
+        better, _ = reference_time(first_forecast, forecast_by_dt)
+        if better in forecast_by_dt and better != reference:
+            reference = better
+            data, forecast_by_dt = load_dashboard(reference)
 except API_ERRORS as exc:
     st.error(f"Could not retrieve forecasts: {exc}")
     st.stop()
 
-forecast_by_dt = {datetime.fromisoformat(x["datetime"]): x for x in data["forecasts"]}
-
 with route_col:
     st.markdown(
-        '<div class="ct-route-label">SELECTED ROUTE</div>'
-        f'<div class="ct-route-name">{escape(location["location_name"])}</div>'
-        f'<div class="ct-route-heading">{escape(direction["heading"])}</div>'
-        f'<div class="ct-forecast-date">Forecast date: <strong>{reference:%d %b %Y}</strong></div>'
-        f'<div class="ct-clock-pill">🕒 Karachi/server time: {now_clock:%I:%M %p}</div>',
+        '<div class="ct-route"><div class="ct-route-label">SELECTED ROUTE</div><div class="ct-ov">'
+        '<div class="ct-ov-row"><span class="ct-ov-dot location"></span><span class="ct-ov-key">LOCATION</span>'
+        f'<span class="ct-ov-val location">{escape(location["location_name"])}</span></div>'
+        '<div class="ct-ov-row"><span class="ct-ov-dot direction"></span><span class="ct-ov-key">DIRECTION</span>'
+        f'<span class="ct-ov-val direction">{escape(direction["heading"])}</span></div></div>'
+        f'<div class="ct-forecast-date">Forecast date: <strong>{reference:%d %b %Y}</strong></div></div>',
         unsafe_allow_html=True,
     )
 st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
@@ -153,8 +165,8 @@ trend_text, trend_class, trend_symbol, trend_note = six_hour_trend(valid_interva
 st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
 with st.container(key="traffic_map_panel"):
     st.markdown(
-        '<div class="ct-map-heading"><div class="ct-section">Traffic Map &amp; Insights</div>'
-        '<span class="ct-map-heading-note">Selected road overview</span></div>',
+        '<div class="ct-head"><div class="ct-section">Traffic Map &amp; Insights</div>'
+        '<span class="ct-head-note">Selected road overview</span></div>',
         unsafe_allow_html=True,
     )
     map_col, info_col = st.columns([7, 3], gap="medium", vertical_alignment="top")
@@ -199,8 +211,4 @@ with st.container(key="traffic_map_panel"):
         unsafe_allow_html=True,
     )
 
-st.markdown(
-    '<div class="ct-divider"></div>'
-    '<div class="ct-footnote">© 2026 Chronos-Traffic · Bahria University Karachi Campus · Final Year Project</div>',
-    unsafe_allow_html=True,
-)
+st.markdown(FOOTER, unsafe_allow_html=True)

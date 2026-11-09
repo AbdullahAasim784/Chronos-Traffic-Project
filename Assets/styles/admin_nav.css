@@ -7,11 +7,11 @@
 }
 
 /* Brand block */
-.ct-side-brand {display:flex;align-items:center;gap:.7rem;padding:.2rem .2rem 1.1rem;margin-bottom:.4rem;border-bottom:1px solid #1e2d44;}
-.ct-side-logo {flex:0 0 40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:1.15rem;
-  background:linear-gradient(135deg,rgba(45,212,191,.18),rgba(56,189,248,.18));border:1px solid rgba(45,212,191,.35);}
+.ct-side-brand {display:flex;align-items:center;gap:.7rem;padding:.2rem .35rem 1.1rem;margin-bottom:.4rem;border-bottom:1px solid #1e2d44;}
+/* Optional logo (add <img class="ct-side-logo"> in admin_nav.py) */
+.ct-side-logo {flex:0 0 40px;height:40px;object-fit:contain;}
 .ct-side-name {font-weight:800;font-size:1.02rem;letter-spacing:-.01em;color:#eef4ff;}
-.ct-side-role {font-size:.64rem;letter-spacing:.18em;font-weight:750;color:#5eead4;margin-top:2px;}
+.ct-side-role {font-size:.64rem;letter-spacing:.18em;font-weight:750;color:#f5bd57;margin-top:2px;}
 .ct-side-section {font-size:.64rem;letter-spacing:.16em;font-weight:750;color:#6f86a6;margin:.9rem .35rem .4rem;}
 
 /* Page links */
@@ -24,21 +24,27 @@
 }
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p {font-weight:600;color:#cfdcec;font-size:.92rem;}
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {
-  background:rgba(45,212,191,.08);
-  border-color:rgba(45,212,191,.25);
+  background:rgba(148,163,184,.08);
+  border-color:transparent;
   transform:translateX(3px);
 }
 /* Current page */
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] {
-  background:rgba(45,212,191,.12);
-  border-color:rgba(45,212,191,.4);
-  box-shadow:inset 3px 0 0 #2dd4bf;
+  background:rgba(245,189,87,.1);
+  border-color:rgba(245,189,87,.4);
+  box-shadow:inset 3px 0 0 #f5bd57;
 }
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p {color:#ffffff;}
 
-/* Signed-in user card */
-.ct-side-user {display:flex;align-items:center;gap:.65rem;margin-top:1.4rem;padding:.75rem .8rem;border-radius:14px;background:#122036;border:1px solid #1f3350;}
-.ct-side-avatar {flex:0 0 34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#0b1220;background:linear-gradient(135deg,#5eead4,#38bdf8);}
-.ct-side-user-name {font-weight:700;color:#eef4ff;font-size:.88rem;}
-.ct-side-user-role {display:flex;align-items:center;gap:.35rem;font-size:.7rem;color:#8ea3bf;margin-top:1px;}
-.ct-side-user-role span {width:7px;height:7px;border-radius:50%;background:#2dd4bf;box-shadow:0 0 6px rgba(45,212,191,.7);}
+/* ---------- App info footer, pinned to the bottom ---------- */
+[data-testid="stSidebarUserContent"] {min-height:100%;display:flex;flex-direction:column;}
+[data-testid="stSidebarUserContent"] > div:first-child {flex:1;display:flex;flex-direction:column;}
+[data-testid="stSidebarUserContent"] > div:first-child > [data-testid="stVerticalBlock"] {flex:1;}
+/* the footer block (or its wrapper, depending on Streamlit version) takes the leftover space above it */
+.st-key-ct_side_footer,
+[data-testid="stLayoutWrapper"]:has(> .st-key-ct_side_footer),
+[data-testid="element-container"]:has(.st-key-ct_side_footer) {margin-top:auto !important;}
+.st-key-ct_side_footer {padding-top:0.8rem;}
+.ct-side-footer {text-align:center;color:#94a8c2;line-height:1.35;padding:1rem .4rem .4rem;border-top:1px solid #1e2d44;}
+.ct-side-version {display:inline-block;padding:.4rem 1rem;border-radius:12px;background:#132036;border:1px solid #263c58;color:#f5bd57;font-weight:700;font-size:.8rem;margin-bottom:.8rem;}
+.ct-side-copy {font-size:.72rem;color:#7f97b6;}

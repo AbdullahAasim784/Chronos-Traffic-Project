@@ -1,11 +1,11 @@
-"""Chronos-Traffic public home page: hero, dataset picker, overview and about."""
 import html
 import sqlite3
-
 import streamlit as st
 
+from contextlib import closing
 from backend.database import DB_PATH
 from utils.styles import load_css
+from utils.ui import FOOTER
 
 st.set_page_config(
     page_title="Chronos-Traffic | Home",
@@ -16,11 +16,9 @@ st.set_page_config(
 
 load_css("main.css", "home.css")
 
-
 @st.cache_data(ttl=60)
 def get_dataset_summary():
-    """Read available datasets; replace with a FastAPI call in the next phase."""
-    with sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True) as conn:
+    with closing(sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)) as conn:
         conn.row_factory = sqlite3.Row
         rows = conn.execute("""
             SELECT d.dataset_id, d.dataset_name, d.region,
@@ -45,9 +43,7 @@ def fmt(value):
     return f"{int(value or 0):,}"
 
 
-# ---------------------------------------------------------------
 # Top bar: brand on the left, Sign In on the right
-# ---------------------------------------------------------------
 brand_col, _, signin_col = st.columns([3, 5, 1.3], vertical_alignment="center")
 
 with brand_col:
@@ -61,11 +57,7 @@ with signin_col:
         st.switch_page("pages/6_Sign_In.py")
 
 
-# ---------------------------------------------------------------
-# Hero
-# (HTML kept on single lines: indented lines inside st.markdown
-#  can be treated as code blocks.)
-# ---------------------------------------------------------------
+# Main Title
 st.markdown(
     '<section class="ct-hero">'
     '<div class="ct-eyebrow">INTELLIGENT TRANSPORTATION SYSTEM</div>'
@@ -77,9 +69,7 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------------
 # Load datasets
-# ---------------------------------------------------------------
 try:
     datasets = get_dataset_summary()
 except (sqlite3.Error, OSError) as exc:
@@ -96,9 +86,7 @@ if st.session_state.get("selected_dataset_name") not in by_name:
     st.session_state["selected_dataset_name"] = next(iter(by_name))
 
 
-# ---------------------------------------------------------------
-# Dataset picker: compact card, selectbox and button side by side
-# ---------------------------------------------------------------
+# Dataset picker
 with st.container(key="dataset_picker"):
     st.markdown('<div class="ct-picker-title">Choose a dataset to explore</div>', unsafe_allow_html=True)
 
@@ -119,35 +107,8 @@ with st.container(key="dataset_picker"):
         if st.button("Explore Forecasts  →", key="explore", type="primary", use_container_width=True):
             st.switch_page("pages/1_Traffic_Dashboard.py")
 
-    meta = []
-    if selected.get("region"):
-        meta.append(f'🌍 {html.escape(str(selected["region"]))}')
-        
-# ---------------------------------------------------------------
-# Stats strip: real totals across all available datasets
-# ---------------------------------------------------------------
-stats = [
-    ("Datasets", len(datasets), "available to explore"),
-    ("Locations", sum(r["locations"] or 0 for r in datasets), "monitored road sites"),
-    ("Directions", sum(r["directions"] or 0 for r in datasets), "travel directions tracked"),
-    ("Forecasts", sum(r["forecasts"] or 0 for r in datasets), "stored prediction points"),
-]
-st.markdown(
-    '<div class="ct-stats">' + "".join(
-        '<div class="ct-stat">'
-        f'<div class="ct-stat-value">{fmt(value)}</div>'
-        f'<div class="ct-stat-label">{label}</div>'
-        f'<div class="ct-stat-note">{note}</div>'
-        "</div>"
-        for label, value, note in stats
-    ) + "</div>",
-    unsafe_allow_html=True,
-)
 
-
-# ---------------------------------------------------------------
-# System overview: one CSS grid, so all cards get equal height
-# ---------------------------------------------------------------
+# System overview 
 features = [
     ("📈", "Traffic Forecasting", "Explore Prophet-based vehicle-count forecasts and predicted congestion levels."),
     ("📊", "Historical Analysis", "Discover trends and traffic patterns across locations and travel directions."),
@@ -177,9 +138,7 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------------
-# How it works: three short steps
-# ---------------------------------------------------------------
+# How it works
 steps = [
     ("Choose a dataset", "Pick a region from the selector above to load its monitored locations."),
     ("Explore forecasts", "See predicted vehicle counts and congestion levels for each location and direction."),
@@ -202,9 +161,7 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------------
-# About: text on the left, tech stack on the right
-# ---------------------------------------------------------------
+# About 
 tech = ["Prophet", "CNN", "FastAPI", "SQLite", "Streamlit", "Plotly", "Folium"]
 
 st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
@@ -212,7 +169,7 @@ st.markdown(
     '<div class="ct-about-grid">'
     "<div>"
     '<div class="ct-section-title">About Chronos-Traffic</div>'
-    '<div class="ct-about">Chronos-Traffic is a final-year intelligent transportation system prototype '
+    '<div class="ct-about">Chronos-Traffic is an AI-powered intelligent transportation system '
     "that combines traffic forecasting with road-scene anomaly detection. Traffic forecasts are generated "
     "using Prophet, while a convolutional neural network (CNN) supports classification of normal traffic, "
     "accidents, and challenging road conditions.</div>"
@@ -226,11 +183,5 @@ st.markdown(
 )
 
 
-# ---------------------------------------------------------------
 # Footer
-# ---------------------------------------------------------------
-st.markdown(
-    '<div class="ct-divider"></div>'
-    '<div class="ct-footnote">© 2026 Chronos-Traffic · Bahria University Karachi Campus · Final Year Project</div>',
-    unsafe_allow_html=True,
-)
+st.markdown(FOOTER, unsafe_allow_html=True)
