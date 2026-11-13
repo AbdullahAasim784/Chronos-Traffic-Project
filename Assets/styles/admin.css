@@ -88,7 +88,7 @@
 .ct-chart-stats > div {display:flex;flex-direction:column;gap:.15rem;padding:.7rem .9rem;border-radius:14px;background:#132036;border:1px solid #263c58;}
 .ct-chart-stats span {font-size:.66rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;text-transform:uppercase;}
 .ct-chart-stats strong {font-size:1.15rem;font-weight:800;color:#f4f8ff;}
-.ct-chart-stats strong.peak {color:#60a5fa;}
+.ct-chart-stats strong.peak {color:#f17b83;}
 .ct-chart-stats strong.quiet {color:#a5b4fc;}
 .ct-chart-stats strong.gold {color:#f5bd57;}
 .ct-chart-stats strong.up {color:#75e3b1;}

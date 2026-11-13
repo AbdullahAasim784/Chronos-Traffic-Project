@@ -11,8 +11,8 @@ from streamlit_folium import st_folium
 
 from utils.api_client import api_get  # type: ignore
 from utils.forecast_ui import (
-    build_intervals, build_map, clock, fmt, interval_panel, level,
-    reference_time, six_hour_trend, week_outlook,
+    build_intervals, build_map, clock, fmt, forecast_picker, interval_panel, level, reference_caption,
+    six_hour_trend, week_outlook,
 )
 from utils.styles import load_css
 from utils.ui import FOOTER, clock_pill
@@ -72,30 +72,35 @@ try:
         st.stop()
     location_by_id = {loc["location_id"]: loc for loc in locations}
 
-    route_col, selectors_col = st.columns([1.85, 1], gap="large", vertical_alignment="center")
+    # Route summary left, selectors right. The selectors sit side by side in a wider
+    # column, so they reach into the middle of the page instead of leaving a gap.
+    route_col, selectors_col = st.columns([1, 1.25], gap="large", vertical_alignment="center")
     with selectors_col:
         st.markdown(
             '<div class="ct-dataset ct-dataset-right">Dataset: '
             f'<strong>{escape(dataset_by_id[dataset_id]["dataset_name"])}</strong></div>',
             unsafe_allow_html=True,
         )
+        location_col, direction_col = st.columns(2, gap="medium")
         # Options are IDs, and each key includes its parent ID. Changing the location
         # therefore creates a fresh direction box instead of keeping a stale selection.
-        location_id = st.selectbox(
-            "Select Location:", list(location_by_id),
-            format_func=lambda i: location_by_id[i]["location_name"],
-            key=f"forecast_location_{dataset_id}",
-        )
+        with location_col:
+            location_id = st.selectbox(
+                "Select Location:", list(location_by_id),
+                format_func=lambda i: location_by_id[i]["location_name"],
+                key=f"forecast_location_{dataset_id}",
+            )
         directions = fetch("/directions", location_id=location_id)
         if not directions:
             st.info("No directions for this location.")
             st.stop()
         direction_by_id = {d["direction_id"]: d for d in directions}
-        direction_id = st.selectbox(
-            "Select Direction:", list(direction_by_id),
-            format_func=lambda i: direction_by_id[i]["heading"],
-            key=f"forecast_direction_{location_id}",
-        )
+        with direction_col:
+            direction_id = st.selectbox(
+                "Select Direction:", list(direction_by_id),
+                format_func=lambda i: direction_by_id[i]["heading"],
+                key=f"forecast_direction_{location_id}",
+            )
 
     location = location_by_id[location_id]
     direction = direction_by_id[direction_id]
@@ -108,26 +113,24 @@ if not range_info.get("start") or not range_info.get("end"):
     st.info("No forecasts for this road and direction.")
     st.stop()
 
-first_forecast = datetime.fromisoformat(range_info["start"])
-reference, _ = reference_time(first_forecast)
 
-
-def load_dashboard(ref):
-    data = fetch("/forecast-dashboard", direction_id=direction_id, reference=ref.strftime("%Y-%m-%d %H:%M:%S"))
-    return data, {datetime.fromisoformat(x["datetime"]): x for x in data["forecasts"]}
+def forecast_times():
+    """All forecast datetimes for this direction (feeds the date / time picker).
+    Uses /forecast-times if the backend has it, otherwise the first 7 days from /forecast-dashboard."""
+    try:
+        return [datetime.fromisoformat(t) for t in fetch("/forecast-times", direction_id=direction_id)]
+    except Exception:  # endpoint not added yet (404 / unexpected reply) -> fall back
+        rows = fetch("/forecast-dashboard", direction_id=direction_id, reference=range_info["start"])["forecasts"]
+        return [datetime.fromisoformat(x["datetime"]) for x in rows]
 
 
 try:
-    data, forecast_by_dt = load_dashboard(reference)
-    # If the first forecast day has nothing at this clock time (e.g. it starts at 11 PM),
-    # move to the first day that does, so the panels don't open on "Unavailable".
-    if reference not in forecast_by_dt:
-        better, _ = reference_time(first_forecast, forecast_by_dt)
-        if better in forecast_by_dt and better != reference:
-            reference = better
-            data, forecast_by_dt = load_dashboard(reference)
+    times = forecast_times()
 except API_ERRORS as exc:
     st.error(f"Could not retrieve forecasts: {exc}")
+    st.stop()
+if not times:
+    st.info("No forecasts for this road and direction.")
     st.stop()
 
 with route_col:
@@ -136,18 +139,33 @@ with route_col:
         '<div class="ct-ov-row"><span class="ct-ov-dot location"></span><span class="ct-ov-key">LOCATION</span>'
         f'<span class="ct-ov-val location">{escape(location["location_name"])}</span></div>'
         '<div class="ct-ov-row"><span class="ct-ov-dot direction"></span><span class="ct-ov-key">DIRECTION</span>'
-        f'<span class="ct-ov-val direction">{escape(direction["heading"])}</span></div></div>'
-        f'<div class="ct-forecast-date">Forecast date: <strong>{reference:%d %b %Y}</strong></div></div>',
+        f'<span class="ct-ov-val direction">{escape(direction["heading"])}</span></div></div></div>',
         unsafe_allow_html=True,
     )
 st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
 
 
 # =================================================================
+# Row above the 6-hour panel: reference text left, Forecast date + time pickers right.
+# Starts at the next Karachi 15-minute slot, or the nearest time this road has forecasts for.
+# =================================================================
+note_col, date_col, time_col = st.columns([2.6, 1, 1], gap="medium", vertical_alignment="bottom")
+reference, snap_note = forecast_picker(times, f"forecast_{direction_id}", date_col, time_col)
+with note_col:
+    st.markdown(reference_caption(reference, snap_note), unsafe_allow_html=True)
+try:
+    data = fetch("/forecast-dashboard", direction_id=direction_id, reference=reference.strftime("%Y-%m-%d %H:%M:%S"))
+except API_ERRORS as exc:
+    st.error(f"Could not retrieve forecasts: {exc}")
+    st.stop()
+forecast_by_dt = {datetime.fromisoformat(x["datetime"]): x for x in data["forecasts"]}
+
+
+# =================================================================
 # 6-hour panel and 7-day outlook (shared components)
 # =================================================================
 intervals, valid_intervals, peak, quiet = build_intervals(forecast_by_dt, reference)
-interval_panel(intervals, peak, quiet, f"forecast_slide_{direction_id}_{reference:%Y%m%d%H%M}")
+interval_panel(intervals, peak, quiet, f"forecast_slide_{direction_id}_{reference:%Y%m%d%H%M}", reference)
 
 st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
 week_outlook(forecast_by_dt, reference)

@@ -1,6 +1,11 @@
 # Large local data: keep out of GitHub (share separately)
 Data/
 *.db
+camera/
+Camera/
+
+# Leftovers
+_to_delete/
 
 # Python cache files
 __pycache__/

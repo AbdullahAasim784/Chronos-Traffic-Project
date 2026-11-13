@@ -29,6 +29,8 @@
 .ct-route .ct-ov-val.direction {font-size:clamp(1.05rem,1.6vw,1.3rem);color:#f5bd57;}
 .ct-forecast-date {font-size:.95rem;color:#9BAEC9;}
 .ct-forecast-date strong {color:#F9FAFB;}
+/* Shown when the current time has no forecast and the nearest time was picked instead */
+.ct-snap-note {margin-top:.45rem;font-size:.8rem;color:#f2ca76;line-height:1.45;max-width:560px;}
 
 /* ---------- Dataset + selectors ---------- */
 .ct-dataset {color:#9BAEC9;font-size:1.08rem;margin:0 0 .55rem;}
@@ -41,7 +43,7 @@
 
 /* ---------- Entrance animations ---------- */
 .ct-title,.ct-subtitle,.st-key-forecast_back_home,.ct-clock-wrap,
-.ct-route-label,.ct-ov-row,.ct-forecast-date,
+.ct-route-label,.ct-ov-row,.ct-forecast-date,.ct-snap-note,
 .ct-dataset-right,[class*="st-key-forecast_location"],[class*="st-key-forecast_direction"] {
   animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
 }
@@ -52,6 +54,7 @@
 .ct-ov-row:nth-child(1) {animation-delay:.18s;}
 .ct-ov-row:nth-child(2) {animation-delay:.24s;}
 .ct-forecast-date {animation-delay:.3s;}
+.ct-snap-note {animation-delay:.34s;}
 .ct-dataset-right {animation-delay:.16s;}
 [class*="st-key-forecast_location"] {animation-delay:.22s;}
 [class*="st-key-forecast_direction"] {animation-delay:.28s;}

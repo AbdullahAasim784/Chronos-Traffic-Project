@@ -14,53 +14,31 @@ import streamlit as st
 from streamlit_folium import st_folium
 
 from utils.admin_ui import (
-    admin_header, connect, divider, footer_and_stop, kpi_card, kpi_grid,
+    admin_header, divider, footer_and_stop, kpi_card, kpi_grid,
     panel_heading, read_sql, route_selectors, setup_admin_page,
 )
 from utils.forecast_ui import (
-    build_intervals, build_map, clock, fmt, interval_panel, level,
-    reference_time, week_outlook,
+    build_intervals, build_map, clock, fmt, forecast_picker, interval_panel, level, reference_caption, week_outlook,
 )
-from utils.ui import BLUE, FOOTER, GOLD, ICONS, PLOT_CONFIG, SPIKES, chart_layout, gold_area, highlight_marker
+from utils.anomaly_store import set_status, todays_alerts
+from utils.ui import BLUE, FOOTER, GOLD, RED, ICONS, PLOT_CONFIG, SPIKES, chart_layout, gold_area, highlight_marker
 
 setup_admin_page("Admin Dashboard", "🚦", "forecast_components.css", "admin_dashboard.css")
 
 INTERVALS_PER_DAY = 96                      # 24 h of 15-minute forecasts
 
-# Column names the anomaly table may use. Your friend's anomaly_logs table only needs
-# ONE name from each list, e.g. detected_at, anomaly_type, location_name, confidence.
-ANOMALY_TIME = ("detected_at", "timestamp", "datetime", "created_at", "time")
-ANOMALY_TYPE = ("anomaly_type", "type", "label", "prediction", "class_name", "category")
-ANOMALY_PLACE = ("location_name", "location", "camera", "source")
-ANOMALY_CONF = ("confidence", "score", "probability")
-
-
-# =================================================================
-# Anomaly alerts data
-# =================================================================
-@st.cache_data(ttl=30, show_spinner=False)
-def recent_anomalies(limit=8):
-    """Latest anomaly rows, or None if the table doesn't exist yet. Short cache: alerts stay fresh."""
-    with connect() as conn:
-        exists = conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='anomaly_logs'"
-        ).fetchone()
-        if not exists:
-            return None
-        return pd.read_sql_query(f"SELECT * FROM anomaly_logs ORDER BY rowid DESC LIMIT {int(limit)}", conn)
-
-
-def first_value(row, names):
-    for name in names:
-        value = row.get(name)
-        if value is not None and pd.notna(value) and str(value).strip():
-            return value
-    return None
+# How each logged anomaly type is shown: (icon, title, CSS kind).
+ALERT_STYLE = {
+    "accident": ("🚨", "Accident", "high"),
+    "flooded": ("🌊", "Flooded Road", "flood"),
+    "uncertain": ("❔", "Uncertain", "na"),
+}
 
 
 admin_header("Admin Dashboard")
 dataset, location, direction = route_selectors("admin", "TRAFFIC OVERVIEW")
 dataset_id, direction_id = int(dataset["dataset_id"]), int(direction["direction_id"])
+kpi_area = st.container()   # KPI cards are drawn here once the forecast time is known (picker sits lower down)
 
 
 # =================================================================
@@ -88,9 +66,13 @@ forecast_by_dt = {
     ts.to_pydatetime(): {"predicted_count": float(v), "congestion": c}
     for ts, v, c in zip(forecast["ts"], forecast["vehicles"], forecast["congestion"])
 }
-# First forecast date + next Karachi 15-minute slot, moved forward to the first day
-# that actually has a forecast at that time (so the panels never open on an empty day).
-reference, _ = reference_time(forecast["ts"].min().to_pydatetime(), forecast_by_dt)
+# Row just above the 6-hour panel: reference text left, Forecast date + time pickers right.
+# Starts at the next Karachi 15-minute slot, or the nearest time this road has forecasts for.
+divider()
+note_col, date_col, time_col = st.columns([2.6, 1, 1], gap="medium", vertical_alignment="bottom")
+reference, snap_note = forecast_picker(list(forecast_by_dt), f"admin_{direction_id}", date_col, time_col)
+with note_col:
+    st.markdown(reference_caption(reference, snap_note), unsafe_allow_html=True)
 next_24h = forecast[(forecast["ts"] >= reference) & (forecast["ts"] < reference + timedelta(hours=24))]
 
 
@@ -162,82 +144,80 @@ else:
     outlook = '<div class="ct-admin-kpi-value">—</div>'
     outlook_desc = "No congestion labels in the next 24 h"
 
-kpi_grid(
-    kpi_card(ICONS["steering-wheel"], "AVG VEHICLES / DAY", f'<div class="ct-admin-kpi-value">{fmt(avg_daily)}</div>', avg_desc),
-    kpi_card(ICONS["clock"], "PEAK HOUR · NEXT 24 H", f'<div class="ct-admin-kpi-value">{peak_label}</div>', peak_desc),
-    kpi_card(ICONS["route"], "TOP 3 BUSIEST ROADS", ranking, "Average vehicles / 15 min across the dataset"),
-    kpi_card(ICONS["gauge"], "CONGESTION OUTLOOK", outlook, outlook_desc),
-)
+with kpi_area:
+    kpi_grid(
+        kpi_card(ICONS["steering-wheel"], "AVG VEHICLES / DAY", f'<div class="ct-admin-kpi-value">{fmt(avg_daily)}</div>', avg_desc),
+        kpi_card(ICONS["clock"], "PEAK HOUR · NEXT 24 H", f'<div class="ct-admin-kpi-value">{peak_label}</div>', peak_desc),
+        kpi_card(ICONS["route"], "TOP 3 BUSIEST ROADS", ranking, "Average vehicles / 15 min across the dataset"),
+        kpi_card(ICONS["gauge"], "CONGESTION OUTLOOK", outlook, outlook_desc),
+    )
 
 
 # =================================================================
 # 6-hour panel and 7-day outlook (shared with the public page)
 # =================================================================
-st.markdown(
-    f'<div class="ct-admin-caption">Forecast reference: {reference:%d %b %Y} · {clock(reference)} '
-    "· Stored predictions, not live traffic.</div>",
-    unsafe_allow_html=True,
-)
 intervals, _, peak_slot, quiet_slot = build_intervals(forecast_by_dt, reference)
-interval_panel(intervals, peak_slot, quiet_slot, f"admin_slide_{direction_id}_{reference:%Y%m%d%H%M}")
+interval_panel(intervals, peak_slot, quiet_slot, f"admin_slide_{direction_id}_{reference:%Y%m%d%H%M}", reference)
 
 divider()
 week_outlook(forecast_by_dt, reference)
 
 
 # =================================================================
-# Map (shared) and anomaly alerts
+# Map (shared) and today's anomaly alerts
 # =================================================================
-def alert_kind(text):
-    t = str(text).lower()
-    if any(w in t for w in ("accident", "crash", "collision", "fire")):
-        return "high"
-    if "normal" in t:
-        return "low"
-    return "medium"
-
-
-def alerts_html(events):
-    count = 0 if events is None else len(events)
-    head = (
-        '<div class="ct-alerts-head"><span class="ct-live-dot"></span>'
+@st.fragment(run_every="30s")
+def anomaly_alerts():
+    """Today's alerts. A fragment that refreshes every 30 s, so new detections appear
+    without reloading the page, and Resolve / Dismiss only redraw this panel."""
+    alerts = todays_alerts()
+    active = 0 if alerts is None else int((alerts["status"] == "active").sum())
+    # Heading turns red while there are active alerts, green when all clear.
+    st.markdown(
+        f'<div class="ct-alerts-head {"alert" if active else "clear"}"><span class="ct-live-dot"></span>'
         '<span class="ct-alerts-title">ANOMALY ALERTS</span>'
-        f'<span class="ct-alerts-count">{count}</span></div>'
+        f'<span class="ct-alerts-count" title="Active alerts today">{active}</span></div>'
+        '<div class="ct-alerts-sub">Today · since 12:00 AM</div>',
+        unsafe_allow_html=True,
     )
-    if not count:
-        note = ("Anomaly logging isn't connected yet." if events is None
-                else "All monitored roads look normal.")
-        body = (
+
+    if alerts is None or alerts.empty:
+        note = ("Anomaly logging isn't set up yet." if alerts is None
+                else "No anomalies detected today.")
+        st.markdown(
             '<div class="ct-alerts-empty"><div class="ct-alerts-shield">✓</div>'
-            '<div class="ct-alerts-empty-title">No anomalies detected</div>'
-            f'<div class="ct-alerts-empty-text">{note} Accidents and hazardous road conditions '
-            "flagged by the CNN model will appear here as instant alerts.</div></div>"
+            '<div class="ct-alerts-empty-title">All clear</div>'
+            f'<div class="ct-alerts-empty-text">{note} Accidents and flooded roads detected on the '
+            "Anomaly Detection page appear here.</div></div>",
+            unsafe_allow_html=True,
         )
-    else:
-        items = []
-        for i, row in enumerate(events.to_dict("records"), 1):
-            kind_text = str(first_value(row, ANOMALY_TYPE) or "Anomaly")
-            when = first_value(row, ANOMALY_TIME)
-            ts = pd.to_datetime(when, errors="coerce") if when is not None else pd.NaT
-            when_text = f"{ts:%d %b} · {clock(ts)}" if pd.notna(ts) else (str(when) if when else "")
-            place = first_value(row, ANOMALY_PLACE)
-            conf = first_value(row, ANOMALY_CONF)
-            conf_text = ""
-            if conf is not None:
-                try:
-                    c = float(conf)
-                    conf_text = f"{c * 100 if c <= 1 else c:.0f}% confidence"
-                except ValueError:
-                    pass
-            meta = " · ".join(html.escape(str(p)) for p in (when_text, place, conf_text) if p)
-            items.append(
-                f'<div class="ct-alert ct-alert-{alert_kind(kind_text)}">'
-                f'<span class="ct-alert-no">{i}</span>'
-                f'<div><div class="ct-alert-type">{html.escape(kind_text.title())}</div>'
-                f'<div class="ct-alert-meta">{meta}</div></div></div>'
-            )
-        body = '<div class="ct-alerts-list">' + "".join(items) + "</div>"
-    return '<section class="ct-alerts">' + head + body + "</section>"
+        return
+
+    with st.container(height=372, border=False, key="alerts_scroll"):   # scrolls when the list is long
+        for no, a in enumerate(alerts.itertuples(index=False), 1):
+            icon, title, kind = ALERT_STYLE.get(str(a.anomaly_type).lower(),
+                                                ("⚠️", str(a.anomaly_type).title(), "medium"))
+            ts = pd.to_datetime(a.detected_time, errors="coerce")
+            when = clock(ts) if pd.notna(ts) else str(a.detected_time)
+            conf = f" · {a.confidence_score * 100:.0f}% confidence" if pd.notna(a.confidence_score) else ""
+            resolved = a.status == "resolved"
+            with st.container(key=f"alert_{kind}_{a.anomaly_id}"):
+                st.markdown(
+                    f'<div class="ct-arow{" resolved" if resolved else ""}">'
+                    f'<span class="ct-alert-no">{no}</span><div class="ct-arow-body">'
+                    f'<div class="ct-arow-top"><span class="ct-alert-type">{icon} {title}</span>'
+                    f'<span class="ct-astatus {a.status}">● {a.status.title()}</span></div>'
+                    f'<div class="ct-alert-meta">{html.escape(str(a.camera_name))} · {when}{conf}</div>'
+                    "</div></div>",
+                    unsafe_allow_html=True,
+                )
+                left, right = st.columns(2, gap="small")
+                if not resolved:
+                    left.button("✓ Resolve", key=f"resolve_{a.anomaly_id}", use_container_width=True,
+                                on_click=set_status, args=(a.anomaly_id, "resolved"))
+                right.button("✕ Dismiss", key=f"dismiss_{a.anomaly_id}", use_container_width=True,
+                             on_click=set_status, args=(a.anomaly_id, "dismissed"),
+                             help="Hide from the dashboard (kept in the database)")
 
 
 divider()
@@ -255,12 +235,8 @@ with st.container(key="traffic_map_panel"):
             )
         else:
             st.info("Coordinates are unavailable for this location.")
-    with alerts_col:
-        try:
-            events = recent_anomalies()
-        except sqlite3.Error:
-            events = None
-        st.markdown(alerts_html(events), unsafe_allow_html=True)
+    with alerts_col, st.container(key="alerts_panel"):
+        anomaly_alerts()
     st.markdown(
         '<div class="ct-map-note">Map marker color represents the next stored forecast, not live traffic.</div>',
         unsafe_allow_html=True,
@@ -292,7 +268,8 @@ def forecast_chart(forecast, reference):
 
         day = reference.date() + timedelta(days=DAY_OPTIONS.get(period or "Today", 0))
         day_data = forecast[forecast["ts"].dt.date == day].set_index("ts")["vehicles"]
-        if (resolution or "Hourly") == "Hourly":
+        hourly = (resolution or "Hourly") == "Hourly"
+        if hourly:
             series = day_data.resample("h").sum(min_count=1).dropna()
             unit = "vehicles / hour"
         else:
@@ -309,23 +286,24 @@ def forecast_chart(forecast, reference):
         day_start = datetime.combine(day, datetime.min.time())
 
         fig = go.Figure()
+        # Hourly: smooth curve. 15-min: straight segments with a dot on every interval,
+        # so the extra detail is visible (the forecast itself is a smooth curve).
         fig.add_trace(gold_area(
-            x=series.index, y=series.values, mode="lines", name="Forecast",
-            line=dict(color=GOLD, width=3, shape="spline", smoothing=0.6),
+            x=series.index, y=series.values, mode="lines" if hourly else "lines+markers", name="Forecast",
+            line=dict(color=GOLD, width=3 if hourly else 2, shape="spline" if hourly else "linear", smoothing=0.6),
+            marker=dict(size=4, color=GOLD),
             hovertemplate=f"<b>%{{y:,.0f}}</b> {unit}<extra></extra>",
         ))
-        highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}")
+        highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}", color=RED)
         fig.add_hline(
             y=mean_val, line=dict(color="rgba(148,163,184,.55)", dash="dot", width=1),
             annotation_text=f"Avg {fmt(mean_val)}", annotation_position="top left",
             annotation_font=dict(color="#9fb0c6", size=10),
         )
-        if day == reference.date():
-            # Shape + annotation (add_vline with text can fail on date axes).
-            fig.add_shape(type="line", x0=reference, x1=reference, y0=0, y1=1, yref="paper",
-                          line=dict(color="rgba(96,165,250,.6)", dash="dot", width=1))
-            fig.add_annotation(x=reference, y=1, yref="paper", yshift=8, showarrow=False,
-                               text="Reference", font=dict(color=BLUE, size=10))
+        # Blue dot on the curve at the selected forecast time (its hour in the hourly view).
+        ref_x = pd.Timestamp(reference).floor("h") if hourly else pd.Timestamp(reference)
+        if ref_x in series.index and ref_x != peak_ts:
+            highlight_marker(fig, ref_x, series[ref_x], f"Forecast · {clock(reference)}", color=BLUE)
         chart_layout(fig, 360, unit, dict(
             range=[day_start, day_start + timedelta(days=1)], tickformat="%H:%M", dtick=2 * 3600 * 1000,
             hoverformat="%I:%M %p", **SPIKES,
@@ -334,10 +312,10 @@ def forecast_chart(forecast, reference):
 
         st.markdown(
             '<div class="ct-chart-stats">'
-            f'<div><span>Total</span><strong>{fmt(series.sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
-            f'<div><span>Peak</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
-            f'<div><span>Quietest</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
-            f'<div><span>Average</span><strong>{fmt(mean_val)}</strong><small>{unit}</small></div>'
+            f'<div><span>Predicted total</span><strong>{fmt(series.sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
+            f'<div><span>Predicted peak</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
+            f'<div><span>Quietest time</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
+            f'<div><span>Predicted average</span><strong>{fmt(mean_val)}</strong><small>{unit}</small></div>'
             "</div>",
             unsafe_allow_html=True,
         )

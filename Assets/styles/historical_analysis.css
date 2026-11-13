@@ -19,15 +19,13 @@
 /* Date picker: same look as the selectors */
 [data-testid="stDateInput"] [data-baseweb="input"] {border-radius:12px;background:#132036;border-color:#263c58;transition:border-color .2s ease;}
 [data-testid="stDateInput"] [data-baseweb="input"]:hover {border-color:#f5bd57;}
-/* "Data available" pill */
-.ct-ha-range {display:inline-flex;align-items:center;gap:.6rem;padding:.5rem 1rem;border-radius:999px;background:#132036;border:1px solid #263c58;color:#b6c8dd;font-size:.8rem;font-weight:600;white-space:nowrap;animation:ct-fade .5s ease .8s backwards;}
-.ct-ha-range b {color:#eef4ff;font-weight:750;}
-.ct-ha-range i {font-style:normal;color:#f5bd57;}
-/* Partial-day note (only when a day has fewer than 96 intervals) */
-.ct-ha-partial {display:flex;align-items:center;gap:.5rem;margin:.4rem 0 .2rem;padding:.5rem .8rem;border-radius:10px;width:fit-content;
-  background:rgba(96,165,250,.07);border:1px solid rgba(96,165,250,.22);color:#a9bdd6;font-size:.78rem;animation:ct-fade .5s ease .8s backwards;}
-.ct-ha-partial b {color:#eef4ff;}
-.ct-ha-partial i {font-style:normal;color:#60a5fa;}
+/* "Data available" pill: same height as the date box, everything on one line */
+.ct-ha-range {display:inline-flex;align-items:center;gap:.5rem;height:2.5rem;box-sizing:border-box;padding:0 1rem;
+  border-radius:999px;background:#132036;border:1px solid #263c58;color:#b6c8dd;font-size:.8rem;font-weight:600;
+  line-height:1;white-space:nowrap;animation:ct-fade .5s ease .8s backwards;}
+.ct-ha-range b {color:#eef4ff;font-weight:750;line-height:1;}
+.ct-ha-range i {font-style:normal;color:#f5bd57;line-height:1;}
+.st-key-panel_ha_day [data-testid="stMarkdownContainer"]:has(.ct-ha-range) {margin-bottom:0 !important;}
 
 /* ---------- Records table ---------- */
 .ct-ha-table td {padding:.6rem .9rem;}
@@ -42,7 +40,7 @@
 .st-key-ha_download button:hover {background:rgba(245,189,87,.16) !important;border-color:#f5bd57 !important;transform:translateY(-2px);}
 
 @media (prefers-reduced-motion:reduce) {
-  .ct-ha-week span,.ct-ha-range,.ct-ha-partial {animation:none !important;}
+  .ct-ha-week span,.ct-ha-range {animation:none !important;}
   .st-key-ha_download button {transition:none !important;}
   .st-key-ha_download button:hover {transform:none !important;}
 }

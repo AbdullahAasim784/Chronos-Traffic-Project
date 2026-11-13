@@ -12,10 +12,20 @@ def get_connection():
     return conn
 
 
+def drop_old_anomaly_table(conn):
+    """Drop the OLD anomaly_logs table (without camera_id) if it still exists."""
+    columns = [row[1] for row in conn.execute("PRAGMA table_info(anomaly_logs)")]
+    if columns and "camera_id" not in columns:
+        conn.execute("DROP TABLE anomaly_logs")
+        print("Old anomaly_logs table removed.")
+
+
 def create_database():
     """Create the Chronos-Traffic database and its tables."""
 
     with get_connection() as conn:
+        drop_old_anomaly_table(conn)
+
         conn.executescript("""
 
         -- ==========================================
@@ -171,18 +181,33 @@ def create_database():
 
 
         -- ==========================================
-        -- 9. ANOMALY LOGS
+        -- 9. CAMERAS
+        -- ==========================================
+
+        CREATE TABLE IF NOT EXISTS cameras (
+            camera_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            camera_name TEXT NOT NULL UNIQUE,
+        );
+
+
+        -- ==========================================
+        -- 10. ANOMALY LOGS
         -- ==========================================
 
         CREATE TABLE IF NOT EXISTS anomaly_logs (
             anomaly_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            camera_id INTEGER NOT NULL,
             user_id INTEGER,
-            detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            detected_time TEXT NOT NULL
+                DEFAULT (datetime('now', 'localtime')),
             anomaly_type TEXT NOT NULL,
-            confidence REAL
-                CHECK (confidence BETWEEN 0 AND 1),
-            media_filename TEXT,
+            confidence_score REAL
+                CHECK (confidence_score BETWEEN 0 AND 1),
+            status TEXT NOT NULL DEFAULT 'new'
+                CHECK (status IN ('new', 'acknowledged')),
 
+            FOREIGN KEY (camera_id)
+                REFERENCES cameras(camera_id),
             FOREIGN KEY (user_id)
                 REFERENCES users(user_id)
         );
@@ -209,6 +234,9 @@ def create_database():
 
         CREATE INDEX IF NOT EXISTS idx_validation_datetime
             ON forecast_validation(datetime);
+
+        CREATE INDEX IF NOT EXISTS idx_anomaly_camera
+            ON anomaly_logs(camera_id);
 
         """)
 

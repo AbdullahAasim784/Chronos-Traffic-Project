@@ -17,7 +17,7 @@ from utils.admin_ui import (
     panel_heading, read_sql, route_selectors, setup_admin_page,
 )
 from utils.forecast_ui import fmt
-from utils.ui import BLUE, FOOTER, GOLD, ICONS, PLOT_CONFIG, RED, SKY, SPIKES, chart_layout, highlight_marker
+from utils.ui import BLUE, FOOTER, GOLD, ICONS, PLOT_CONFIG, RED, SPIKES, chart_layout, highlight_marker
 
 setup_admin_page("Model Performance", "🎯", "model_performance.css")
 
@@ -249,55 +249,6 @@ def comparison_chart(validation):
 
 
 comparison_chart(validation)
-
-
-# =================================================================
-# Error analysis: by hour of day + error distribution
-# =================================================================
-divider()
-with st.container(key="panel_mp_error"):
-    st.markdown(
-        panel_heading("🔍 Error Analysis", "Where and how the model misses"),
-        unsafe_allow_html=True,
-    )
-    hour_col, dist_col = st.columns(2, gap="large")
-
-    with hour_col:
-        hourly = scored.groupby(scored["datetime"].dt.hour)["absolute_error"].mean()
-        worst_hour = hourly.idxmax() if not hourly.empty else None
-        st.markdown(
-            '<div class="ct-subhead">ERROR BY HOUR OF DAY</div>'
-            '<div class="ct-subnote">Average absolute error for each hour'
-            + (f' · hardest hour <b class="ct-hl blue">{worst_hour:02d}:00</b>' if worst_hour is not None else "")
-            + "</div>",
-            unsafe_allow_html=True,
-        )
-        hour_fig = go.Figure(go.Bar(
-            x=[f"{h:02d}:00" for h in hourly.index], y=hourly.values,
-            marker=dict(color=[PREDICT if h == worst_hour else ACTUAL for h in hourly.index],
-                        line=dict(width=0)),
-            opacity=0.9,
-            hovertemplate="%{x}<br><b>%{y:,.1f}</b> vehicles off on average<extra></extra>",
-        ))
-        chart_layout(hour_fig, 300, "Mean absolute error", dict(dtick=3, fixedrange=True))
-        hour_fig.update_layout(hovermode="closest", bargap=0.25)
-        st.plotly_chart(hour_fig, use_container_width=True, config=PLOT_CONFIG)
-
-    with dist_col:
-        st.markdown(
-            '<div class="ct-subhead">ERROR DISTRIBUTION</div>'
-            '<div class="ct-subnote">Actual − predicted · left of 0 means the model predicted too high</div>',
-            unsafe_allow_html=True,
-        )
-        dist_fig = go.Figure(go.Histogram(
-            x=scored["error"], nbinsx=30, marker=dict(color=SKY, line=dict(width=0)), opacity=0.85,
-            hovertemplate="Error %{x}<br><b>%{y}</b> intervals<extra></extra>",
-        ))
-        dist_fig.add_shape(type="line", x0=0, x1=0, y0=0, y1=1, yref="paper",
-                           line=dict(color="rgba(245,189,87,.7)", dash="dot", width=1))
-        chart_layout(dist_fig, 300, "Number of intervals", dict(fixedrange=True))
-        dist_fig.update_layout(hovermode="closest", bargap=0.06)
-        st.plotly_chart(dist_fig, use_container_width=True, config=PLOT_CONFIG)
 
 
 # =================================================================

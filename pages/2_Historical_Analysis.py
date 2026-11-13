@@ -15,7 +15,7 @@ from utils.admin_ui import (
     panel_heading, read_sql, route_selectors, setup_admin_page,
 )
 from utils.forecast_ui import clock, fmt
-from utils.ui import BLUE, FOOTER, GOLD, ICONS, PLOT_CONFIG, SPIKES, chart_layout, gold_area, highlight_marker
+from utils.ui import FOOTER, GOLD, ICONS, PLOT_CONFIG, RED, SPIKES, chart_layout, gold_area, highlight_marker
 
 setup_admin_page("Historical Analysis", "🗄️", "historical_analysis.css")
 
@@ -150,20 +150,20 @@ divider()
 
 
 # =================================================================
-# 1. Daily traffic pattern + records table.
-#    A fragment: changing the date or resolution reruns only these two panels.
+# 1. Daily traffic pattern. Not a fragment: the records table at the bottom of the page
+#    follows the date picked here, so changing it reruns the page.
 # =================================================================
 default_day = (max(usable_days.index) if not usable_days.empty else last_ts.date())
 
 
-@st.fragment
 def day_explorer(history):
+    """Draws the daily pattern panel and returns (day, day_rows) for the records table."""
     with st.container(key="panel_ha_day"):
         st.markdown(
             panel_heading("📅 Daily Traffic Pattern", "Drag to zoom · double-click to reset")
             + '<div class="ct-legend">'
             '<span><i class="gold"></i>Recorded traffic</span>'
-            '<span><i class="dot-blue"></i>Peak</span></div>',
+            '<span><i class="dot-red"></i>Peak</span></div>',
             unsafe_allow_html=True,
         )
         date_col, range_col, res_col = st.columns([1.2, 2, 1.3], vertical_alignment="center")
@@ -206,14 +206,6 @@ def day_explorer(history):
                 unit = "vehicles / 15 min"
             shown = series.dropna()
 
-            recorded = len(day_rows)
-            if recorded < INTERVALS_PER_DAY:
-                st.markdown(
-                    f'<div class="ct-ha-partial"><i>◔</i> <b>{recorded} of {INTERVALS_PER_DAY}</b> intervals '
-                    "recorded on this day. Missing intervals are shown as gaps, not filled in.</div>",
-                    unsafe_allow_html=True,
-                )
-
             peak_ts, peak_val = shown.idxmax(), shown.max()
             quiet_ts, quiet_val = shown.idxmin(), shown.min()
             mean_val = shown.mean()
@@ -224,7 +216,7 @@ def day_explorer(history):
                 line=dict(color=GOLD, width=3, shape="spline", smoothing=0.6),
                 hovertemplate=f"Recorded <b>%{{y:,.0f}}</b> {unit}<extra></extra>",
             ))
-            highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}")
+            highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}", color=RED)
             fig.add_hline(
                 y=mean_val, line=dict(color="rgba(148,163,184,.55)", dash="dot", width=1),
                 annotation_text=f"Avg {fmt(mean_val)}", annotation_position="top left",
@@ -238,16 +230,19 @@ def day_explorer(history):
 
             st.markdown(
                 '<div class="ct-chart-stats">'
-                f'<div><span>Total</span><strong>{fmt(day_rows["vehicle_count"].sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
-                f'<div><span>Peak</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
-                f'<div><span>Quietest</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
-                f'<div><span>Average</span><strong class="gold">{fmt(mean_val)}</strong><small>{unit}</small></div>'
+                f'<div><span>Total count</span><strong>{fmt(day_rows["vehicle_count"].sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
+                f'<div><span>Peak time</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
+                f'<div><span>Quietest time</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
+                f'<div><span>Average count</span><strong class="gold">{fmt(mean_val)}</strong><small>{unit}</small></div>'
                 "</div>",
                 unsafe_allow_html=True,
             )
 
-    divider()
+    return day, day_rows
 
+
+def records_table(day, day_rows):
+    """Every recorded 15-minute interval on the chosen day (bottom of the page)."""
     with st.container(key="panel_ha_table"):
         title_col, dl_col = st.columns([3, 1], vertical_alignment="center")
         with title_col:
@@ -284,7 +279,7 @@ def day_explorer(history):
         )
 
 
-day_explorer(history)
+day, day_rows = day_explorer(history)
 divider()
 
 
@@ -316,7 +311,7 @@ def hour_distribution(hourly):
 
         fig = go.Figure(go.Bar(
             x=[f"{h:02d}:00" for h in profile.index], y=profile.values,
-            marker=dict(color=[BLUE if h == top else GOLD for h in profile.index], line=dict(width=0)),
+            marker=dict(color=[RED if h == top else GOLD for h in profile.index], line=dict(width=0)),
             opacity=0.9,
             hovertemplate="%{x}<br><b>%{y:,.0f}</b> vehicles on average<extra></extra>",
         ))
@@ -342,7 +337,7 @@ divider()
 
 
 # =================================================================
-# 3. Daily average trend over the whole period, with a rolling average
+# 3. Daily average trend over the whole period
 # =================================================================
 @st.fragment
 def daily_trend(per_day):
@@ -351,27 +346,20 @@ def daily_trend(per_day):
             panel_heading("📈 Daily Average Traffic Trend", "Drag to zoom · double-click to reset")
             + '<div class="ct-legend">'
             '<span><i class="gold"></i>Daily average</span>'
-            '<span><i class="blue"></i>7-day average</span>'
-            '<span><i class="dot-blue"></i>Busiest day</span></div>',
+            '<span><i class="dot-red"></i>Busiest day</span></div>',
             unsafe_allow_html=True,
         )
         daily = per_day["mean"].copy()
         daily.index = pd.to_datetime(daily.index)
-        rolling = daily.rolling(7, min_periods=4).mean()   # smooths weekday / weekend swings
         busy_day, quiet_day = daily.idxmax(), daily.idxmin()
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=daily.index, y=daily.values, mode="lines", name="Daily average",
-            line=dict(color=GOLD, width=1.4),
+            line=dict(color=GOLD, width=1.8),
             hovertemplate="Daily average <b>%{y:,.1f}</b> / 15 min<extra></extra>",
         ))
-        fig.add_trace(go.Scatter(
-            x=rolling.index, y=rolling.values, mode="lines", name="7-day average",
-            line=dict(color=BLUE, width=3, shape="spline", smoothing=0.6),
-            hovertemplate="7-day average <b>%{y:,.1f}</b><extra></extra>",
-        ))
-        highlight_marker(fig, busy_day, daily.max(), f"Busiest · {busy_day:%d %b}")
+        highlight_marker(fig, busy_day, daily.max(), f"Busiest · {busy_day:%d %b}", color=RED)
         chart_layout(fig, 380, "avg vehicles / 15 min", dict(
             tickformat="%b %Y", hoverformat="%a %d %b %Y", **SPIKES,
         ))
@@ -397,5 +385,12 @@ def daily_trend(per_day):
 
 
 daily_trend(per_day)
+divider()
+
+
+# =================================================================
+# 4. Records table for the date chosen in the Daily Traffic Pattern (bottom of the page)
+# =================================================================
+records_table(day, day_rows)
 
 st.markdown(FOOTER, unsafe_allow_html=True)

@@ -5,6 +5,12 @@
   background:linear-gradient(180deg,#0f1b2d 0%,#0b1220 100%) !important;
   border-right:1px solid #1e2d44;
 }
+/* Fixed sidebar: it never scrolls, the content fills exactly the window height */
+[data-testid="stSidebarContent"] {overflow:hidden !important;height:100%;display:flex;flex-direction:column;}
+[data-testid="stSidebar"] *,[data-testid="stSidebarContent"] {scrollbar-width:none;}
+[data-testid="stSidebar"] *::-webkit-scrollbar,[data-testid="stSidebarContent"]::-webkit-scrollbar {display:none;}
+/* Streamlit's top bar inside the sidebar (collapse button) keeps its own height */
+[data-testid="stSidebarHeader"] {flex:0 0 auto;}
 
 /* Brand block */
 .ct-side-brand {display:flex;align-items:center;gap:.7rem;padding:.2rem .35rem 1.1rem;margin-bottom:.4rem;border-bottom:1px solid #1e2d44;}
@@ -37,7 +43,7 @@
 [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p {color:#ffffff;}
 
 /* ---------- App info footer, pinned to the bottom ---------- */
-[data-testid="stSidebarUserContent"] {min-height:100%;display:flex;flex-direction:column;}
+[data-testid="stSidebarUserContent"] {flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding-bottom:1rem !important;}
 [data-testid="stSidebarUserContent"] > div:first-child {flex:1;display:flex;flex-direction:column;}
 [data-testid="stSidebarUserContent"] > div:first-child > [data-testid="stVerticalBlock"] {flex:1;}
 /* the footer block (or its wrapper, depending on Streamlit version) takes the leftover space above it */
@@ -45,6 +51,14 @@
 [data-testid="stLayoutWrapper"]:has(> .st-key-ct_side_footer),
 [data-testid="element-container"]:has(.st-key-ct_side_footer) {margin-top:auto !important;}
 .st-key-ct_side_footer {padding-top:0.8rem;}
-.ct-side-footer {text-align:center;color:#94a8c2;line-height:1.35;padding:1rem .4rem .4rem;border-top:1px solid #1e2d44;}
+.ct-side-footer {text-align:center;color:#94a8c2;line-height:1.35;padding:.9rem .4rem .2rem;border-top:1px solid #1e2d44;}
 .ct-side-version {display:inline-block;padding:.4rem 1rem;border-radius:12px;background:#132036;border:1px solid #263c58;color:#f5bd57;font-weight:700;font-size:.8rem;margin-bottom:.8rem;}
 .ct-side-copy {font-size:.72rem;color:#7f97b6;}
+
+/* Short windows: tighten spacing so everything still fits without scrolling */
+@media (max-height:640px) {
+  .ct-side-brand {padding-bottom:.6rem;}
+  .ct-side-section {margin:.5rem .35rem .25rem;}
+  [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {padding:.4rem .7rem;margin:.08rem 0;}
+  .ct-side-version {margin-bottom:.4rem;}
+}

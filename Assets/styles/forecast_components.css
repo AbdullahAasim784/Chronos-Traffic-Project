@@ -7,13 +7,22 @@
 
 /* Keyframes (ct-up, ct-pop, ct-fade), .ct-section and the .ct-head row live in main.css. */
 
+/* ---------- Row above the 6-hour panel: reference text left, date + time pickers right ---------- */
+.ct-ref-caption {color:#8ea3bf;font-size:.86rem;line-height:1.5;padding-bottom:.4rem;}
+.ct-ref-caption strong {color:#eef4ff;font-weight:750;}
+.ct-snap-note {margin-top:-.1rem;padding-bottom:.4rem;font-size:.8rem;color:#f2ca76;line-height:1.45;}
+[data-testid="stDateInput"] [data-baseweb="input"],[data-testid="stTimeInput"] [data-baseweb="select"] > div {
+  border-radius:12px !important;background:#132036 !important;border-color:#263c58 !important;}
+.ct-ref-caption,.ct-snap-note,[data-testid="stDateInput"],[data-testid="stTimeInput"] {animation:ct-up .6s cubic-bezier(.22,.61,.36,1) .3s backwards;}
+
 /* ================================================================
    6-hour outlook panel
    ================================================================ */
 /* Panels share the KPI-card surface: navy gradient, soft border */
 .st-key-forecast_interval_panel {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:28px;padding:25px clamp(14px,2.5vw,32px) 24px;}
 .ct-panel-header {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px;}
-.ct-panel-kicker {font-size:.84rem;font-weight:800;letter-spacing:.055em;color:#edf2fa;}
+.ct-panel-kicker {display:inline-flex;align-items:center;gap:.5rem;font-size:.84rem;font-weight:800;letter-spacing:.055em;color:#edf2fa;}
+.ct-panel-kicker .ct-icon {width:1.2rem;height:1.2rem;color:#f5bd57;flex:0 0 auto;}
 .ct-panel-hint {font-size:.82rem;color:#9dbbe0;}
 
 /* Icon and count share one row with a small, fixed gap. */
@@ -23,6 +32,11 @@
      Softer grey: invert(.8). Original black: delete this filter line. */
   filter:brightness(0) invert(1);}
 .ct-panel-count-row {display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+/* Forecast date / time, filling the space right of the count */
+/* margin-left = distance from the count; bigger value = further right */
+.ct-panel-when {margin-left:clamp(28px,4vw,64px);padding-left:clamp(14px,2vw,28px);border-left:1px solid #263c58;display:flex;flex-direction:column;gap:.75rem;}
+.ct-panel-when span {display:block;font-size:.64rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;}
+.ct-panel-when strong {display:block;font-size:.98rem;font-weight:750;color:#f4f8ff;margin-top:.15rem;white-space:nowrap;}
 .ct-panel-count {font-size:clamp(3.2rem,5vw,4.2rem);font-weight:800;color:#f5bd57;line-height:1.1;letter-spacing:-.05em;}
 .ct-panel-unit {font-size:.85rem;color:#b9c7d8;}
 .ct-panel-status {display:flex;gap:9px;flex-wrap:wrap;font-size:.9rem;font-weight:750;margin-top:5px;}
@@ -43,11 +57,13 @@
 
 /* Pill-shaped interval slots */
 .ct-native-slot {height:150px;max-width:120px;margin:0 auto;padding:16px 5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:1px solid transparent;border-radius:60px;text-align:center;}
-/* Current slot: lighter navy with a gold outline */
-.ct-native-slot.is-current {background:#1c3150;border-color:rgba(245,189,87,.55);box-shadow:0 6px 18px rgba(0,0,0,.25);}
+/* Current slot: lighter navy fill, no outline */
+.ct-native-slot.is-current {background:#1c3150;border-color:transparent;box-shadow:0 6px 18px rgba(0,0,0,.25);}
 .ct-panel-slot-time {font-size:clamp(.65rem,.9vw,.78rem);font-weight:750;color:#b9c9df;white-space:nowrap;}
 .ct-native-slot.is-current .ct-panel-slot-time {color:#fcd34d;}
 .ct-panel-slot-count {color:#f9fafb;font-size:clamp(1.25rem,2vw,1.8rem);font-weight:800;line-height:1.1;}
+/* Small unit after counts, like °C after a temperature */
+.ct-veh {font-size:.62rem;font-weight:650;color:#8ea3bf;margin-left:.2rem;letter-spacing:.02em;}
 .ct-panel-slot-level {border-radius:999px;padding:5px 10px;font-size:.72rem;font-weight:750;min-width:64px;}
 .ct-panel-slot-level.low {background:rgba(45,185,122,.15);color:#75e3b1;}
 .ct-panel-slot-level.medium {background:rgba(230,182,79,.15);color:#f2ca76;}
@@ -112,14 +128,15 @@
 .ct-week-heading-note {color:#9cb8d4;font-size:.85rem;white-space:nowrap;}
 .ct-week-description {color:#afc0d6;font-size:.9rem;margin:0 0 15px;line-height:1.45;}
 .ct-week-panel {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:24px;padding:14px 16px 11px;overflow:hidden;}
-.ct-week-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;}
+.ct-week-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;column-gap:10px;}
 .ct-week-day {min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:14px 4px 15px;border-radius:14px;position:relative;transition:background-color .2s ease,box-shadow .2s ease;}
-/* Other days: faint lift on hover only */
-.ct-week-day:hover {background:rgba(28,49,80,.55);}
+/* No hover effect: the days are not clickable */
 /* First day = the day being shown: fixed highlight with a gold top line */
-.ct-week-day:first-child,.ct-week-day:first-child:hover {background:#1c3150;box-shadow:inset 0 3px 0 #f5bd57,0 6px 18px rgba(0,0,0,.22);}
+.ct-week-day:first-child {background:#1c3150;box-shadow:inset 0 3px 0 #f5bd57,0 6px 18px rgba(0,0,0,.22);}
 .ct-week-day:first-child .ct-week-weekday,.ct-week-day:first-child .ct-week-date {color:#fcd34d;}
-.ct-week-day + .ct-week-day::before {content:"";position:absolute;left:0;top:14px;bottom:14px;width:1px;background:#2f4562;}
+/* Divider sits in the middle of the gap, so it never touches the highlighted first day */
+.ct-week-day + .ct-week-day::before {content:"";position:absolute;left:-5.5px;top:14px;bottom:14px;width:1px;background:#2f4562;}
+.ct-week-day:nth-child(2)::before {display:none;}
 .ct-week-weekday {font-size:.79rem;color:#9cb8d4;font-weight:650;}
 .ct-week-date {font-size:.84rem;color:#eaf0f7;font-weight:700;white-space:nowrap;}
 .ct-week-count {font-size:clamp(1.3rem,2.1vw,1.9rem);font-weight:800;line-height:1.3;color:#f5bd57;font-variant-numeric:tabular-nums;}
@@ -129,9 +146,9 @@
 .ct-week-high {color:#ff9ca6;}
 .ct-week-na {color:#91a3bb;}
 .ct-week-footer {display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;border-top:1px solid #263c58;margin-top:3px;padding:10px 6px 2px;color:#9cb8d4;font-size:.81rem;line-height:1.35;}
-.ct-week-vehicle {color:#f5bd57;font-size:1rem;line-height:1;}
+.ct-week-ico {display:inline-flex;color:#f5bd57;}
+.ct-week-ico .ct-icon {width:1.05rem;height:1.05rem;}
 .ct-week-footer-dot {color:#64748b;padding:0 2px;}
-.ct-week-clock {font-size:1rem;line-height:1;}
 
 /* ================================================================
    Map panel
@@ -204,6 +221,10 @@
 /* ================================================================
    Responsive and accessibility
    ================================================================ */
+@media (max-width:900px) {
+  .ct-panel-when {margin-left:0;padding-left:0;border-left:0;flex-direction:row;gap:1.5rem;margin-top:.6rem;}
+  .ct-panel-main {flex-wrap:wrap;}
+}
 @media (max-width:800px) {
   .ct-native-slot {max-width:95px;padding:12px 2px;}
   .ct-panel-slot-level {min-width:0;padding:5px 7px;}

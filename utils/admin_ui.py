@@ -26,6 +26,9 @@ def setup_admin_page(page_title, icon, *page_css):
         layout="wide", initial_sidebar_state="expanded",
     )
     load_css("main.css", "admin.css", "admin_nav.css", *page_css)
+    # Remember which page ran last, so a page can tell "just arrived" from "rerun on the same page".
+    st.session_state["ct_previous_page"] = st.session_state.get("ct_current_page")
+    st.session_state["ct_current_page"] = page_title
     require_admin()
     admin_sidebar(load_styles=False)
 

@@ -1,0 +1,202 @@
+/* ================================================================
+   Road Anomaly Detection (admin page)
+   Header, Log Out, clock pill, tables and meters come from admin.css
+   (same classic gold theme as the other admin pages).
+   ================================================================ */
+
+@keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
+@keyframes ct-fade {from {opacity:0;}}
+
+.ct-section {font-size:1.3rem;font-weight:750;margin:0 0 .9rem;color:#F9FAFB;}
+
+/* ---------- Workspace panel ---------- */
+.st-key-anomaly_workspace,.st-key-anomaly_result_panel,.st-key-anomaly_history {
+  background:linear-gradient(150deg,#14263f 0%,#111d31 100%);
+  border:1px solid #263c58;
+  border-radius:24px;
+  box-shadow:0 8px 28px rgba(0,0,0,.18);
+  padding:22px clamp(14px,2.2vw,28px) 24px;
+}
+.ct-ws-head {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px;}
+.ct-ws-kicker {font-size:.8rem;font-weight:800;letter-spacing:.07em;color:#f5bd57;}
+.ct-ws-hint {font-size:.8rem;color:#8ea3bf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%;}
+
+/* ---------- Preview box (left, 70%) ---------- */
+.st-key-anomaly_preview {
+  min-height:440px;
+  justify-content:center;
+  border:1.5px dashed #34506f;
+  border-radius:18px;
+  background:rgba(245,189,87,.03);
+  padding:12px;
+  overflow:hidden;
+  position:relative;   /* anchors the red X button */
+}
+
+/* Red X: removes the selected file. Sits on the preview's top-right corner. */
+.st-key-anomaly_clear {position:absolute !important;top:22px;right:22px;z-index:5;width:auto !important;}
+.st-key-anomaly_clear button {
+  width:36px;height:36px;min-height:36px;padding:0 !important;border-radius:50% !important;
+  background:#e5484d !important;border:2px solid rgba(255,255,255,.85) !important;color:#fff !important;
+  font-size:.95rem !important;font-weight:800 !important;line-height:1;
+  box-shadow:0 6px 16px rgba(0,0,0,.4);transition:transform .2s ease,background .2s ease;
+}
+.st-key-anomaly_clear button:hover {background:#c9353a !important;transform:scale(1.1) rotate(90deg);}
+.st-key-anomaly_clear button p {font-size:.95rem !important;font-weight:800 !important;}
+.ct-preview-empty {text-align:center;padding:2rem 1rem;}
+.ct-preview-icon {font-size:2.6rem;line-height:1;margin-bottom:.9rem;}
+.ct-preview-title {font-size:1.1rem;font-weight:750;color:#e6f1ff;}
+.ct-preview-text {font-size:.86rem;color:#8ea3bf;margin-top:.4rem;line-height:1.55;}
+.ct-preview-text strong {color:#cfdcec;}
+.ct-preview-wrap {position:relative;animation:ct-fade .45s ease backwards;}
+.ct-preview-img {display:block;width:100%;height:414px;object-fit:contain;border-radius:12px;background:#0b1220;}
+.ct-preview-chip {position:absolute;top:12px;left:12px;padding:.3rem .7rem;border-radius:999px;font-size:.74rem;font-weight:700;
+  color:#e6f1ff;background:rgba(11,18,32,.78);border:1px solid rgba(245,189,87,.45);backdrop-filter:blur(4px);}
+.ct-preview-chip::first-letter {color:#f17b83;}
+.st-key-anomaly_preview video {max-height:414px;border-radius:12px;background:#0b1220;}
+
+/* ---------- Controls (right, 30%) ----------
+   Same height as the preview; content sits slightly above the middle. */
+.st-key-anomaly_controls {min-height:440px;justify-content:center;padding-bottom:2.5rem;gap:.85rem;}
+/* extra space between the file card and the Analyze button */
+.st-key-anomaly_analyze {margin-top:.75rem;}
+.st-key-anomaly_choose button {
+  min-height:48px;border-radius:12px !important;
+  background:transparent !important;border:1.5px solid #f5bd57 !important;color:#f5bd57 !important;font-weight:700 !important;
+  transition:background .2s ease,transform .2s ease;
+}
+.st-key-anomaly_choose button p {color:#f5bd57 !important;font-weight:700 !important;}
+.st-key-anomaly_choose button:hover {background:rgba(245,189,87,.1) !important;transform:translateY(-2px);}
+
+.ct-src-card {margin:.2rem 0 .1rem;padding:1rem 1.05rem;border-radius:16px;background:#132036;border:1px solid #263c58;}
+.ct-src-badge {display:inline-block;padding:.22rem .6rem;border-radius:999px;font-size:.68rem;font-weight:800;letter-spacing:.08em;
+  color:#0b1220;background:var(--ct-gold-gradient,linear-gradient(135deg,#fde68a,#f5bd57,#d97706));}
+.ct-src-place {font-size:1.1rem;font-weight:800;color:#f4f8ff;margin-top:.55rem;line-height:1.3;}
+.ct-src-rows {display:flex;flex-direction:column;gap:.45rem;margin-top:.8rem;padding-top:.75rem;border-top:1px solid #263c58;}
+.ct-src-rows div {display:flex;justify-content:space-between;gap:.6rem;font-size:.8rem;}
+.ct-src-rows span {color:#7f97b6;}
+.ct-src-rows strong {color:#dbe7f7;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ct-src-empty {border-style:dashed;}
+.ct-src-empty .ct-src-place {margin-top:0;font-size:.98rem;color:#cfdcec;}
+.ct-src-note {font-size:.78rem;color:#8ea3bf;margin-top:.3rem;line-height:1.5;}
+
+/* Analyze: solid blue, white text, no gradient */
+.st-key-anomaly_analyze button {
+  min-height:52px;border-radius:12px !important;border:none !important;
+  background:#3b82f6 !important;background-image:none !important;color:#ffffff !important;font-weight:800 !important;
+  box-shadow:0 8px 22px rgba(59,130,246,.25);
+  transition:transform .2s ease,box-shadow .2s ease,background .2s ease;
+}
+.st-key-anomaly_analyze button p {color:#ffffff !important;font-weight:800 !important;}
+.st-key-anomaly_analyze button:hover:not(:disabled) {background:#2563eb !important;transform:translateY(-2px);box-shadow:0 12px 28px rgba(59,130,246,.35);}
+.st-key-anomaly_analyze button:disabled {background:#3b82f6 !important;opacity:.35;box-shadow:none;}
+
+.ct-model-chip {display:flex;align-items:center;justify-content:center;gap:.45rem;font-size:.74rem;color:#8ea3bf;}
+.ct-model-chip span {width:7px;height:7px;border-radius:50%;}
+.ct-model-chip.ready span {background:#55dca4;box-shadow:0 0 6px rgba(85,220,164,.7);}
+.ct-model-chip.missing span {background:#f17b83;}
+
+/* ---------- Result ---------- */
+.ct-verdict {padding:1.3rem 1.35rem;border-radius:18px;border:1.5px solid;animation:ct-up .5s cubic-bezier(.22,.61,.36,1) backwards;}
+.ct-verdict-low {--c:#55dca4;--c-soft:#75e3b1;background:rgba(45,185,122,.08);border-color:rgba(85,220,164,.55);}
+.ct-verdict-medium {--c:#e5b54c;--c-soft:#f2ca76;background:rgba(230,182,79,.08);border-color:rgba(229,181,76,.55);}
+.ct-verdict-high {--c:#f17b83;--c-soft:#ff9ca6;background:rgba(240,95,111,.08);border-color:rgba(241,123,131,.6);}
+.ct-verdict-flood {--c:#38bdf8;--c-soft:#7dd3fc;background:rgba(56,189,248,.08);border-color:rgba(56,189,248,.55);}
+.ct-verdict-na {--c:#94a3b8;--c-soft:#cbd5e1;background:rgba(148,163,184,.07);border-color:rgba(148,163,184,.45);}
+.ct-verdict-kicker {font-size:.68rem;font-weight:800;letter-spacing:.12em;color:#9eb5d0;}
+.ct-verdict-label {font-size:clamp(1.35rem,2.2vw,1.75rem);font-weight:850;color:var(--c-soft);margin-top:.35rem;line-height:1.2;}
+.ct-verdict-conf {margin-top:.8rem;font-size:.85rem;color:#b6c8dd;}
+.ct-verdict-conf span {font-size:2rem;font-weight:850;color:#f4f8ff;letter-spacing:-.03em;margin-right:.2rem;}
+.ct-conf-track {height:8px;border-radius:999px;background:#1d2c44;overflow:hidden;margin-top:.45rem;}
+.ct-conf-track span {display:block;height:100%;border-radius:999px;background:var(--c);animation:ct-grow .9s cubic-bezier(.22,.61,.36,1) .2s backwards;transform-origin:left;}
+@keyframes ct-grow {from {transform:scaleX(0);}}
+.ct-verdict-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem;}
+.ct-verdict-grid div {display:flex;flex-direction:column;gap:.15rem;padding:.55rem .65rem;border-radius:12px;background:rgba(11,18,32,.45);}
+.ct-verdict-grid span,.ct-verdict-action span {font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;font-weight:750;color:#7f97b6;}
+.ct-verdict-grid strong {font-size:.82rem;color:#e6f1ff;overflow-wrap:anywhere;}
+.ct-verdict-action {display:flex;flex-direction:column;gap:.2rem;margin-top:.8rem;font-size:.92rem;font-weight:700;color:var(--c-soft);}
+
+/* Saved / not saved note under the result card */
+.ct-log-note {margin-top:.7rem;font-size:.78rem;font-weight:650;color:#93a8c3;display:flex;align-items:center;gap:.4rem;
+  animation:ct-fade .5s ease .4s backwards;}
+.ct-log-note.saved {color:#75e3b1;}
+.ct-log-note.warn {color:#f2ca76;}
+
+/* Chart on its own shaded card, so it doesn't blend into the panel */
+.st-key-anomaly_chart_card {background:#132036;border:1px solid #263c58;border-radius:18px;padding:.6rem .9rem .3rem;
+  animation:ct-up .5s cubic-bezier(.22,.61,.36,1) .1s backwards;}
+
+/* ---------- Anomaly history ---------- */
+.st-key-anomaly_history {gap:.75rem;}
+.st-key-anomaly_history .ct-ws-head {margin-bottom:0;}
+.ct-hist-chips {display:flex;flex-wrap:wrap;align-items:center;gap:.45rem;}
+/* gap between the 4 count chips and the table */
+.st-key-anomaly_history [data-testid="stMarkdownContainer"]:has(.ct-hist-chips) {margin-bottom:.6rem;}
+.ct-hist-chips span {padding:.3rem .75rem;border-radius:999px;font-size:.76rem;color:#b6c8dd;background:#132036;border:1px solid #263c58;}
+.ct-hist-chips b {color:#f4f8ff;font-weight:800;margin-right:.2rem;}
+.ct-hist-chips .active b {color:#f17b83;}
+.ct-hist-chips .resolved b {color:#75e3b1;}
+.ct-hist-chips .dismissed b {color:#94a3b8;}
+.ct-hist-chips .day {margin-left:auto;background:none;border:0;color:#8ea3bf;}
+.ct-hist-empty {padding:1.6rem 1rem;text-align:center;color:#8ea3bf;font-size:.86rem;border:1px dashed #2f4562;border-radius:14px;}
+.ct-hist-table td:first-child {color:#7f97b6;width:3.5rem;}
+.ct-hist-table .ct-tbar {max-width:200px;}
+.ct-hist-type {font-weight:700;}
+.ct-hist-type.accident {color:#ff9ca6;}
+.ct-hist-type.flooded {color:#7dd3fc;}
+.ct-hist-type.uncertain,.ct-hist-type.other {color:#cbd5e1;}
+.ct-hist-status {display:inline-block;padding:.2rem .65rem;border-radius:999px;font-size:.72rem;font-weight:750;border:1px solid;}
+.ct-hist-status.active {color:#ff9ca6;background:rgba(241,123,131,.1);border-color:rgba(241,123,131,.45);}
+.ct-hist-status.resolved {color:#75e3b1;background:rgba(85,220,164,.1);border-color:rgba(85,220,164,.45);}
+.ct-hist-status.dismissed {color:#cbd5e1;background:rgba(148,163,184,.1);border-color:rgba(148,163,184,.4);}
+
+/* ---------- Model information ---------- */
+.ct-mi {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:24px;padding:22px clamp(14px,2.2vw,28px) 24px;}
+.ct-mi .ct-ws-head {margin-bottom:16px;}
+.ct-mi-layout {display:grid;grid-template-columns:1fr 1.15fr;gap:28px;align-items:stretch;}
+.ct-mi-summary {display:flex;flex-direction:column;}
+.ct-mi-summary h3 {margin:0 0 .6rem;padding:0;font-size:1.3rem;font-weight:800;letter-spacing:-.02em;color:#eef4ff;}
+.ct-mi-summary h3 span {background:var(--ct-gold-gradient,linear-gradient(110deg,#fde68a,#f5bd57,#d97706));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.ct-mi-summary p {margin:0 0 .8rem;color:#b6c8dd;font-size:.92rem;line-height:1.7;}
+.ct-mi-summary strong {color:#e6f1ff;}
+.ct-mi-facts {display:flex;flex-wrap:wrap;gap:.5rem;margin-top:auto;padding-top:.6rem;}
+.ct-mi-facts span {padding:.35rem .75rem;border-radius:999px;font-size:.75rem;font-weight:650;color:#cfe0f5;background:#132036;border:1px solid #263c58;}
+
+.ct-mi-cards {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.ct-mi-card {padding:14px 15px;border-radius:16px;background:linear-gradient(150deg,#14263f,#111d31);border:1px solid #263c58;
+  position:relative;overflow:hidden;transition:border-color .25s ease,transform .25s ease;}
+.ct-mi-card::before {content:"";position:absolute;left:0;top:0;right:0;height:3px;background:linear-gradient(90deg,#fde68a,#f5bd57,#d97706);opacity:.6;}
+.ct-mi-card:hover {border-color:#f5bd57;transform:translateY(-3px);}
+.ct-mi-card span {display:block;font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;font-weight:750;color:#7f97b6;}
+.ct-mi-card strong {display:block;font-size:1.55rem;font-weight:800;color:#f4f8ff;margin-top:.35rem;letter-spacing:-.02em;}
+.ct-mi-card strong.gold {color:#f5bd57;}
+.ct-mi-card small {display:block;font-size:.72rem;color:#93a8c3;margin-top:.2rem;}
+
+.ct-mi-classes {margin-top:12px;padding:14px 16px;border-radius:16px;background:#132036;border:1px solid #263c58;}
+.ct-mi-row {display:grid;grid-template-columns:1.4fr 1fr 1fr 1.6fr;align-items:center;gap:.4rem;padding:9px 0;font-size:.86rem;border-bottom:1px solid rgba(38,60,88,.6);}
+.ct-mi-row:last-child {border-bottom:0;padding-bottom:2px;}
+.ct-mi-headrow {padding-top:0;font-size:.62rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;text-transform:uppercase;border-bottom:1px solid #263c58;}
+.ct-mi-name {display:flex;align-items:center;gap:.5rem;font-weight:700;color:#eef4ff;}
+.ct-mi-dot {width:9px;height:9px;border-radius:50%;flex:0 0 9px;}
+.ct-mi-num {color:#dbe7f7;font-variant-numeric:tabular-nums;}
+.ct-mi-bar {height:7px;border-radius:999px;background:#1d2c44;overflow:hidden;}
+.ct-mi-bar i {display:block;height:100%;border-radius:999px;animation:ct-grow .9s cubic-bezier(.22,.61,.36,1) .4s backwards;transform-origin:left;}
+
+/* ---------- Entrance animations ---------- */
+.st-key-anomaly_workspace,.st-key-anomaly_result_panel,.st-key-anomaly_history,.ct-mi {animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;}
+.st-key-anomaly_workspace {animation-delay:.3s;}
+.st-key-anomaly_history {animation-delay:.45s;}
+.ct-mi {animation-delay:.55s;}
+
+
+/* ---------- Responsive ---------- */
+@media (max-width:900px) {
+  .st-key-anomaly_controls {min-height:0;padding-bottom:0;}
+  .ct-mi-layout {grid-template-columns:1fr;}
+  .ct-verdict-grid {grid-template-columns:1fr;}
+  .st-key-anomaly_preview {min-height:300px;}
+  .ct-preview-img {height:300px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .st-key-anomaly_workspace,.st-key-anomaly_result_panel,.st-key-anomaly_history,.ct-mi,.ct-mi-bar i,.ct-verdict,.ct-conf-track span,.ct-preview-wrap {animation:none !important;}
+}

@@ -21,6 +21,15 @@ SLIDE_STEP = 8       # slots moved per arrow click (set to 1 to move one interva
 OUTLOOK_SLOTS = 25   # 6 hours of 15-minute intervals (inclusive)
 LEVEL_COLORS = {"low": "#55dca4", "medium": "#e5b54c", "high": "#f17b83", "na": "#94a3b8"}
 
+# Line icons (Tabler Icons, MIT) as inline SVG; colour comes from CSS (currentColor).
+_SVG = ('<svg class="ct-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
+        'stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" '
+        'aria-hidden="true">{}</svg>')
+ICON_CLOCK = _SVG.format('<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/>')
+ICON_CAR = _SVG.format('<path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>'
+                       '<path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>'
+                       '<path d="M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"/>')
+
 
 # =================================================================
 # Small helpers
@@ -67,6 +76,74 @@ def reference_time(first_forecast, available=None):
         else:
             reference = datetime.combine(first_forecast.date(), next_slot.time())
     return reference, now
+
+
+def karachi_now():
+    """Karachi time without timezone info (forecast times are stored that way)."""
+    return datetime.now(ZoneInfo("Asia/Karachi")).replace(tzinfo=None)
+
+
+def _minutes(t):
+    return t.hour * 60 + t.minute
+
+
+def default_reference(times):
+    """Starting forecast time for the date/time picker. Returns (reference, note).
+
+    Uses the next Karachi 15-minute slot on the earliest day that has a forecast at that time.
+    If no day has that time (e.g. Karachi data covers 8 AM-3 PM and it is now 4 PM),
+    it snaps to the nearest time that does exist and explains why in `note`.
+    """
+    times = sorted(times)
+    now = karachi_now()
+    slot = (now.replace(second=0, microsecond=0) + timedelta(minutes=15 - now.minute % 15)).time()
+    exact = next((t for t in times if t.time() == slot), None)
+    if exact is not None:
+        return exact, None
+    tods = sorted({t.time() for t in times})
+    best = min(tods, key=lambda tod: abs(_minutes(tod) - _minutes(slot)))
+    reference = next(t for t in times if t.time() == best)
+    note = (f"Forecasts for this road cover {clock(tods[0])} – {clock(tods[-1])} each day, "
+            f"so {clock(best)} is shown instead of {clock(slot)}.")
+    return reference, note
+
+
+def forecast_picker(times, key, date_col, time_col):
+    """Forecast date (calendar) + time (15-minute steps) pickers. Returns (reference, note).
+
+    If the chosen date/time has no forecast (outside the data's hours or dates),
+    the nearest available forecast time is used and `note` says so.
+    """
+    times = sorted(times)
+    available = set(times)
+    default, default_note = default_reference(times)
+    dates = sorted({t.date() for t in times})
+    with date_col:
+        day = st.date_input("Forecast date", value=default.date(), min_value=dates[0], max_value=dates[-1],
+                            format="DD/MM/YYYY", key=f"{key}_date")
+    with time_col:
+        tod = st.time_input("Forecast time", value=default.time(), step=timedelta(minutes=15), key=f"{key}_time")
+
+    wanted = datetime.combine(day, tod)
+    if wanted in available:
+        return wanted, (default_note if wanted == default else None)
+
+    # Nearest day that has forecasts, then the nearest 15-minute slot on that day.
+    near_day = min(dates, key=lambda d: abs((d - day).days))
+    day_times = [t for t in times if t.date() == near_day]
+    reference = min(day_times, key=lambda t: abs(_minutes(t) - _minutes(tod)))
+    note = (f"No forecast at {wanted:%d %b} · {clock(wanted)}. "
+            f"Showing the nearest available time: {reference:%d %b} · {clock(reference)}.")
+    return reference, note
+
+
+def reference_caption(reference, note=None):
+    """'Forecast reference: ...' line shown above the 6-hour panel (left side)."""
+    return (
+        f'<div class="ct-ref-caption">Forecast reference: <strong>{reference:%a, %d %b %Y} · {clock(reference)}</strong>'
+        " · Stored predictions, not live traffic.</div>"
+        + (f'<div class="ct-snap-note">{escape(note)}</div>' if note else "")
+    )
 
 
 @st.cache_data(show_spinner=False)
@@ -127,6 +204,11 @@ def _shift_slots(state_key, delta, max_start):
     st.session_state["slide_tick"] = st.session_state.get("slide_tick", 0) + 1
 
 
+def _unit(value):
+    """Small "veh" after a count, like °C after a temperature."""
+    return '<span class="ct-veh">veh</span>' if value is not None and value == value else ""
+
+
 def _slot_html(item, is_current, offset, total, slide_dir, tick):
     classes = "ct-native-slot"
     if is_current:
@@ -139,31 +221,38 @@ def _slot_html(item, is_current, offset, total, slide_dir, tick):
     return (
         f'<div class="{classes}" style="--delay:{delay}">'
         f'<div class="ct-panel-slot-time">{escape(item["time"])}</div>'
-        f'<div class="ct-panel-slot-count">{escape(item["count"])}</div>'
+        f'<div class="ct-panel-slot-count">{escape(item["count"])}{_unit(item["value"])}</div>'
         f'<div class="ct-panel-slot-level {level(item["congestion"])}">{escape(item["congestion"])}</div>'
         "</div>"
     )
 
 
 @st.fragment
-def interval_panel(intervals, peak, quiet, state_key):
-    """The 6-hour panel. A fragment: arrow clicks rerun only this panel."""
+def interval_panel(intervals, peak, quiet, state_key, reference=None):
+    """The 6-hour panel. A fragment: arrow clicks rerun only this panel.
+    `reference` adds the Forecast date / Forecast time block next to the count."""
     first = intervals[0] if intervals else None
 
     with st.container(key="forecast_interval_panel"):
         st.markdown(
-            '<div class="ct-panel-header"><span class="ct-panel-kicker">◷ &nbsp; UPCOMING TRAFFIC FORECAST</span>'
+            '<div class="ct-panel-header"><span class="ct-panel-kicker">' + ICON_CLOCK + 'UPCOMING TRAFFIC FORECAST</span>'
             '<span class="ct-panel-hint">6-hour outlook</span></div>',
             unsafe_allow_html=True,
         )
 
         # Third column is a small spacer so the insights sit between the middle and the right edge.
-        main_col, insights_col, _ = st.columns([2, 1.1, 0.25], gap="large", vertical_alignment="center")
+        # main_col | insights_col | spacer. Smaller last number = insights further right.
+        main_col, insights_col, _ = st.columns([2, 1.1, 0.06], gap="large", vertical_alignment="center")
 
         with main_col:
             icon = icon_data_uri(str(ICON_PATH))
             icon_html = f'<img class="ct-panel-icon" src="{icon}" alt="">' if icon else ""
             congestion = first["congestion"] if first else "Unavailable"
+            when = (
+                '<div class="ct-panel-when">'
+                f'<div><span>FORECAST DATE</span><strong>{reference:%a, %d %b %Y}</strong></div>'
+                f'<div><span>FORECAST TIME</span><strong>{clock(reference)}</strong></div></div>'
+            ) if reference is not None else ""
             st.markdown(
                 '<div class="ct-panel-main">' + icon_html + "<div>"
                 '<div class="ct-panel-count-row">'
@@ -171,8 +260,7 @@ def interval_panel(intervals, peak, quiet, state_key):
                 '<span class="ct-panel-unit">vehicles / 15 min</span></div>'
                 '<div class="ct-panel-status">'
                 f'<span class="{level(congestion)}">Congestion: {escape(congestion)}</span>'
-                f'<span class="ct-panel-main-time">· {escape(first["time"] if first else "")}</span>'
-                "</div></div></div>",
+                "</div></div>" + when + "</div>",
                 unsafe_allow_html=True,
             )
 
@@ -237,7 +325,7 @@ def week_outlook(forecast_by_dt, reference):
             f'<div class="ct-week-day" title="{escape(target.strftime("%A, %d %B %Y"))}">'
             f'<div class="ct-week-weekday">{target:%a}</div>'
             f'<div class="ct-week-date">{target:%d %b}</div>'
-            f'<div class="ct-week-count">{escape(fmt(record.get("predicted_count")))}</div>'
+            f'<div class="ct-week-count">{escape(fmt(record.get("predicted_count")))}{_unit(record.get("predicted_count"))}</div>'
             f'<div class="ct-week-status ct-week-{level(congestion)}">{escape(congestion)}</div>'
             "</div>"
         )
@@ -248,8 +336,8 @@ def week_outlook(forecast_by_dt, reference):
         "compared at the same time across seven days.</div>"
         '<section class="ct-week-panel" aria-label="Upcoming week traffic forecast">'
         '<div class="ct-week-grid">' + "".join(days) + "</div>"
-        '<div class="ct-week-footer"><span class="ct-week-vehicle">▰</span> Vehicle counts / 15 min '
-        '<span class="ct-week-footer-dot">·</span> <span class="ct-week-clock">◷</span> '
+        '<div class="ct-week-footer"><span class="ct-week-ico">' + ICON_CAR + '</span> Vehicle counts / 15 min '
+        '<span class="ct-week-footer-dot">·</span> <span class="ct-week-ico">' + ICON_CLOCK + '</span> '
         f"Compared at {escape(clock(reference))}</div></section>",
         unsafe_allow_html=True,
     )
