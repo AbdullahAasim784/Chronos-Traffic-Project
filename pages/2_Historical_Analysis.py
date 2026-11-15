@@ -3,37 +3,29 @@
 Recorded traffic counts for one road and direction from the traffic_counts table.
 Reads SQLite directly (same as the Admin Dashboard), so it works when FastAPI is down.
 """
-import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 from utils.admin_ui import (
-    admin_header, divider, footer_and_stop, kpi_card, kpi_grid, meter,
-    panel_heading, read_sql, route_selectors, setup_admin_page,
+    admin_header, footer_and_stop, kpi_card, kpi_grid, meter, panel_heading, route_selectors, setup_admin_page,
 )
-from utils.forecast_ui import clock, fmt
-from utils.ui import FOOTER, GOLD, ICONS, PLOT_CONFIG, RED, SPIKES, chart_layout, gold_area, highlight_marker
+from utils.config import GOLD, INTERVALS_PER_DAY, RED
+from utils.db import DB_ERRORS, read_sql
+from utils.formatting import clock, fmt, hour_label, num
+from utils.ui import (
+    ICONS, PLOT_CONFIG, SPIKES, average_line, chart_layout, chart_stats, day_axis, divider, footer, gold_area,
+    highlight_marker, stat,
+)
 
 setup_admin_page("Historical Analysis", "🗄️", "historical_analysis.css")
 
-INTERVALS_PER_DAY = 96                       # 24 h of 15-minute records
 USABLE_SHARE = 0.9                           # a day counts for averages if >= 90% of its intervals exist
 MIN_INTERVALS = int(INTERVALS_PER_DAY * USABLE_SHARE)   # 86 of 96
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-
-
-def num(value, digits=1):
-    if value is None or pd.isna(value):
-        return "—"
-    return f"{value:,.{digits}f}"
-
-
-def hour_label(hour):
-    return clock(datetime(2000, 1, 1, int(hour)))
 
 
 admin_header("Historical Analysis", "Recorded traffic patterns from the telemetry dataset")
@@ -50,7 +42,7 @@ try:
         "SELECT datetime, vehicle_count FROM traffic_counts WHERE direction_id = ? ORDER BY datetime",
         (direction_id,),
     ).copy()
-except sqlite3.Error as exc:
+except DB_ERRORS as exc:
     st.error(f"Traffic records unavailable: {exc}")
     footer_and_stop()
 
@@ -217,25 +209,15 @@ def day_explorer(history):
                 hovertemplate=f"Recorded <b>%{{y:,.0f}}</b> {unit}<extra></extra>",
             ))
             highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}", color=RED)
-            fig.add_hline(
-                y=mean_val, line=dict(color="rgba(148,163,184,.55)", dash="dot", width=1),
-                annotation_text=f"Avg {fmt(mean_val)}", annotation_position="top left",
-                annotation_font=dict(color="#9fb0c6", size=10),
-            )
-            chart_layout(fig, 380, unit, dict(
-                range=[day_start, day_start + timedelta(days=1)], tickformat="%H:%M",
-                dtick=2 * 3600 * 1000, hoverformat="%I:%M %p", **SPIKES,
-            ))
+            average_line(fig, mean_val)
+            chart_layout(fig, 380, unit, day_axis(day))
             st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
 
-            st.markdown(
-                '<div class="ct-chart-stats">'
-                f'<div><span>Total count</span><strong>{fmt(day_rows["vehicle_count"].sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
-                f'<div><span>Peak time</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
-                f'<div><span>Quietest time</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
-                f'<div><span>Average count</span><strong class="gold">{fmt(mean_val)}</strong><small>{unit}</small></div>'
-                "</div>",
-                unsafe_allow_html=True,
+            chart_stats(
+                stat("Total count", fmt(day_rows["vehicle_count"].sum()), f"vehicles · {day:%a %d %b}"),
+                stat("Peak time", clock(peak_ts), f"{fmt(peak_val)} {unit}", "peak"),
+                stat("Quietest time", clock(quiet_ts), f"{fmt(quiet_val)} {unit}", "quiet"),
+                stat("Average count", fmt(mean_val), unit, "gold"),
             )
 
     return day, day_rows
@@ -321,14 +303,12 @@ def hour_distribution(hourly):
 
         day_total = profile.sum()
         daytime = profile.loc[7:18].sum()
-        st.markdown(
-            '<div class="ct-chart-stats">'
-            f'<div><span>Busiest hour</span><strong class="peak">{hour_label(top)}</strong><small>{fmt(profile[top])} vehicles / hour</small></div>'
-            f'<div><span>Quietest hour</span><strong class="quiet">{hour_label(low)}</strong><small>{fmt(profile[low])} vehicles / hour</small></div>'
-            f'<div><span>Daytime share</span><strong class="gold">{num(daytime / day_total * 100 if day_total else None, 0)}%</strong><small>of daily traffic, 7 AM – 7 PM</small></div>'
-            f'<div><span>Average</span><strong>{fmt(profile.mean())}</strong><small>vehicles / hour · {group.lower()}</small></div>'
-            "</div>",
-            unsafe_allow_html=True,
+        chart_stats(
+            stat("Busiest hour", hour_label(top), f"{fmt(profile[top])} vehicles / hour", "peak"),
+            stat("Quietest hour", hour_label(low), f"{fmt(profile[low])} vehicles / hour", "quiet"),
+            stat("Daytime share", f"{num(daytime / day_total * 100 if day_total else None, 0)}%",
+                 "of daily traffic, 7 AM – 7 PM", "gold"),
+            stat("Average", fmt(profile.mean()), f"vehicles / hour · {group.lower()}"),
         )
 
 
@@ -366,21 +346,18 @@ def daily_trend(per_day):
         st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
 
         # Change between the first and last 30 recorded days.
-        change_html = '<strong>—</strong><small>Need 60+ days to compare</small>'
+        change_card = stat("Long-term change", "—", "Need 60+ days to compare")
         if len(daily) >= 60:
             first30, last30 = daily.iloc[:30].mean(), daily.iloc[-30:].mean()
             if first30:
                 change = (last30 - first30) / first30 * 100
-                change_html = (f'<strong class="{"up" if change >= 0 else "down"}">{change:+.0f}%</strong>'
-                               "<small>last 30 days vs first 30 days</small>")
-        st.markdown(
-            '<div class="ct-chart-stats">'
-            f'<div><span>Busiest day</span><strong class="peak">{busy_day:%d %b %Y}</strong><small>{num(daily.max())} vehicles / 15 min</small></div>'
-            f'<div><span>Quietest day</span><strong class="quiet">{quiet_day:%d %b %Y}</strong><small>{num(daily.min())} vehicles / 15 min</small></div>'
-            f'<div><span>Overall average</span><strong>{num(daily.mean())}</strong><small>vehicles / 15 min</small></div>'
-            f"<div><span>Long-term change</span>{change_html}</div>"
-            "</div>",
-            unsafe_allow_html=True,
+                change_card = stat("Long-term change", f"{change:+.0f}%", "last 30 days vs first 30 days",
+                                   "up" if change >= 0 else "down")
+        chart_stats(
+            stat("Busiest day", f"{busy_day:%d %b %Y}", f"{num(daily.max())} vehicles / 15 min", "peak"),
+            stat("Quietest day", f"{quiet_day:%d %b %Y}", f"{num(daily.min())} vehicles / 15 min", "quiet"),
+            stat("Overall average", num(daily.mean()), "vehicles / 15 min"),
+            change_card,
         )
 
 
@@ -393,4 +370,4 @@ divider()
 # =================================================================
 records_table(day, day_rows)
 
-st.markdown(FOOTER, unsafe_allow_html=True)
+footer()

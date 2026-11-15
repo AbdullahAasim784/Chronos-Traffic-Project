@@ -1,121 +1,124 @@
-from datetime import datetime, timedelta
-from pathlib import Path
+"""Chronos-Traffic API (FastAPI).
+
+Serves the public Traffic Dashboard (pages/1_Traffic_Dashboard.py). Every endpoint opens
+the SQLite database read-only and returns only the rows one screen needs.
+Admin pages read the database directly (utils/db.py), so they keep working if this API is down.
+
+Run:  uvicorn backend.main:app --reload      ->  docs at http://127.0.0.1:8000/docs
+"""
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime, timedelta
+
 from fastapi import FastAPI, HTTPException, Query
 
-DB_PATH = Path(__file__).resolve().parent / 'traffic.db'
-app = FastAPI(title='Chronos-Traffic API', version='1.0')
+from backend.database import DB_PATH   # same database file the Streamlit pages use
 
+app = FastAPI(title="Chronos-Traffic API", version="1.0")
+TIME_FMT = "%Y-%m-%d %H:%M:%S"          # how datetimes are stored in SQLite
+
+
+# =================================================================
+# Database helpers
+# =================================================================
 @contextmanager
 def db():
+    """Read-only connection for one request; rows behave like dicts (row["column"])."""
     if not DB_PATH.exists():
-        raise HTTPException(503, 'SQLite database not found')
-    con = sqlite3.connect(f'file:{DB_PATH.as_posix()}?mode=ro', uri=True)
+        raise HTTPException(503, "SQLite database not found")
+    con = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
     try:
         yield con
     finally:
         con.close()
 
+
 def records(cursor):
-    return [dict(r) for r in cursor.fetchall()]
+    """All rows of a query as a list of dicts (FastAPI turns them into JSON)."""
+    return [dict(row) for row in cursor.fetchall()]
 
-@app.get('/health')
+
+# =================================================================
+# Endpoints, in the order the dashboard calls them
+# =================================================================
+@app.get("/health")
 def health():
+    """Quick check that the API is running and can open the database."""
     with db() as con:
-        con.execute('SELECT 1')
-    return {'status': 'ok'}
+        con.execute("SELECT 1")
+    return {"status": "ok"}
 
-@app.get('/datasets')
+
+@app.get("/datasets")
 def datasets():
+    """Datasets that can be picked on the dashboard (Victoria, Karachi)."""
     with db() as con:
-        return records(con.execute('SELECT dataset_id, dataset_name, region FROM datasets WHERE is_available = 1 ORDER BY dataset_name'))
+        return records(con.execute(
+            "SELECT dataset_id, dataset_name, region FROM datasets WHERE is_available = 1 ORDER BY dataset_name"))
 
-@app.get('/locations')
+
+@app.get("/locations")
 def locations(dataset_id: int = Query(..., ge=1)):
+    """Monitored roads in one dataset, with map coordinates."""
     with db() as con:
-        return records(con.execute('SELECT location_id, location_name, latitude, longitude FROM locations WHERE dataset_id = ? ORDER BY location_name', (dataset_id,)))
+        return records(con.execute(
+            """SELECT location_id, location_name, latitude, longitude
+               FROM locations WHERE dataset_id = ? ORDER BY location_name""", (dataset_id,)))
 
-@app.get('/directions')
+
+@app.get("/directions")
 def directions(location_id: int = Query(..., ge=1)):
+    """Traffic directions (headings) of one road."""
     with db() as con:
-        return records(con.execute('SELECT direction_id, heading FROM location_directions WHERE location_id = ? ORDER BY heading', (location_id,)))
+        return records(con.execute(
+            "SELECT direction_id, heading FROM location_directions WHERE location_id = ? ORDER BY heading",
+            (location_id,)))
 
-@app.get('/forecast-range')
-def forecast_range(direction_id: int = Query(..., ge=1)):
+
+@app.get("/forecast-times")
+def forecast_times(direction_id: int = Query(..., ge=1)):
+    """Every forecast timestamp for one direction (feeds the date / time picker).
+    Plain strings keep the reply small even for months of 15-minute forecasts."""
     with db() as con:
-        row = con.execute('SELECT MIN(datetime) AS start, MAX(datetime) AS end FROM forecasts WHERE direction_id = ?', (direction_id,)).fetchone()
-        return dict(row)
+        return [row[0] for row in con.execute(
+            "SELECT datetime FROM forecasts WHERE direction_id = ? ORDER BY datetime", (direction_id,))]
 
-@app.get('/forecast-dashboard')
+
+@app.get("/forecast-dashboard")
 def forecast_dashboard(direction_id: int = Query(..., ge=1), reference: str = Query(...)):
+    """Everything the dashboard shows for one direction from a reference time:
+    the road, the last recorded count that day, and the next 7 days of forecasts."""
     try:
         reference_dt = datetime.fromisoformat(reference)
         if reference_dt.tzinfo is not None:
-            raise ValueError('Reference must be local naive datetime')
-        reference = reference_dt.strftime('%Y-%m-%d %H:%M:%S')
+            raise ValueError("Reference must be a local time without timezone")
+        reference = reference_dt.strftime(TIME_FMT)
     except ValueError:
-        raise HTTPException(422, 'Use YYYY-MM-DD HH:MM:SS without timezone')
+        raise HTTPException(422, "Use YYYY-MM-DD HH:MM:SS without timezone")
+
     with db() as con:
-        location = con.execute('''SELECT l.location_name, l.latitude, l.longitude, ld.heading, d.dataset_name
-                                  FROM location_directions ld JOIN locations l ON l.location_id=ld.location_id
-                                  JOIN datasets d ON d.dataset_id=l.dataset_id WHERE ld.direction_id=?''', (direction_id,)).fetchone()
+        location = con.execute(
+            """SELECT l.location_name, l.latitude, l.longitude, ld.heading, d.dataset_name
+               FROM location_directions ld
+               JOIN locations l ON l.location_id = ld.location_id
+               JOIN datasets d ON d.dataset_id = l.dataset_id
+               WHERE ld.direction_id = ?""", (direction_id,)).fetchone()
         if location is None:
-            raise HTTPException(404, 'Direction not found')
-        # Latest recorded observation at/before the reference timestamp, limited to same day.
-        current = con.execute('''SELECT datetime, vehicle_count FROM traffic_counts
-                                 WHERE direction_id=? AND datetime<=? AND datetime>=substr(?,1,10)||' 00:00:00'
-                                 ORDER BY datetime DESC LIMIT 1''', (direction_id, reference, reference)).fetchone()
-        # Small date-bounded result, never read the full database into the UI.
-        end = (reference_dt + timedelta(days=7, hours=1)).strftime('%Y-%m-%d %H:%M:%S')
-        future = records(con.execute('''SELECT datetime, predicted_count, traffic_percentage, congestion,
-                                       yhat_lower, yhat_upper FROM forecasts
-                                       WHERE direction_id=? AND datetime>=? AND datetime<=? ORDER BY datetime''',
-                                     (direction_id, reference, end)))
-        return {'location': dict(location), 'reference': reference, 'observed': dict(current) if current else None, 'forecasts': future}
+            raise HTTPException(404, "Direction not found")
 
+        # Latest recorded count at or before the reference time, on the same day only.
+        observed = con.execute(
+            """SELECT datetime, vehicle_count FROM traffic_counts
+               WHERE direction_id = ? AND datetime <= ? AND datetime >= substr(?, 1, 10) || ' 00:00:00'
+               ORDER BY datetime DESC LIMIT 1""", (direction_id, reference, reference)).fetchone()
 
-# ==========================================
-# MODEL PERFORMANCE ENDPOINTS
-# ==========================================
+        # Only 7 days (+1 h) of forecasts: the UI never needs the whole table.
+        end = (reference_dt + timedelta(days=7, hours=1)).strftime(TIME_FMT)
+        forecasts = records(con.execute(
+            """SELECT datetime, predicted_count, traffic_percentage, congestion, yhat_lower, yhat_upper
+               FROM forecasts WHERE direction_id = ? AND datetime >= ? AND datetime <= ?
+               ORDER BY datetime""", (direction_id, reference, end)))
 
-@app.get('/model-metrics')
-def model_metrics(direction_id: int = Query(..., ge=1)):
-    """All stored evaluation results (MAE / RMSE / R2 ...) for one direction."""
-    with db() as con:
-        return records(con.execute('''SELECT evaluation_type, evaluation_start, evaluation_end,
-                                             actual_records, matched_records, mae, rmse, r2_score
-                                      FROM model_metrics WHERE direction_id = ?
-                                      ORDER BY evaluation_type''', (direction_id,)))
-
-@app.get('/model-metrics/summary')
-def model_metrics_summary(dataset_id: int = Query(..., ge=1), evaluation_type: str | None = None):
-    """Metrics for every direction in a dataset, used for the location comparison table."""
-    sql = '''SELECT ld.direction_id, l.location_name, ld.heading, m.evaluation_type,
-                    m.matched_records, m.mae, m.rmse, m.r2_score
-             FROM model_metrics m
-             JOIN location_directions ld ON ld.direction_id = m.direction_id
-             JOIN locations l ON l.location_id = ld.location_id
-             WHERE l.dataset_id = ?'''
-    params = [dataset_id]
-    if evaluation_type:
-        sql += ' AND m.evaluation_type = ?'
-        params.append(evaluation_type)
-    sql += ' ORDER BY m.mae'
-    with db() as con:
-        return records(con.execute(sql, params))
-
-@app.get('/validation')
-def validation(direction_id: int = Query(..., ge=1), evaluation_type: str | None = None):
-    """Timestamp-level actual vs predicted rows from forecast_validation."""
-    sql = '''SELECT datetime, evaluation_type, actual, predicted, min_predicted, max_predicted,
-                    error, absolute_error, status
-             FROM forecast_validation WHERE direction_id = ?'''
-    params = [direction_id]
-    if evaluation_type:
-        sql += ' AND evaluation_type = ?'
-        params.append(evaluation_type)
-    sql += ' ORDER BY datetime'
-    with db() as con:
-        return records(con.execute(sql, params))
+    return {"location": dict(location), "reference": reference,
+            "observed": dict(observed) if observed else None, "forecasts": forecasts}

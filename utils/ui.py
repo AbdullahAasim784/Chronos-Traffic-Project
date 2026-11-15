@@ -1,18 +1,12 @@
-"""Small UI pieces shared by public and admin pages: footer, clock pill, icons, chart styling."""
-from datetime import datetime
-from zoneinfo import ZoneInfo
+"""Shared UI pieces for every page: divider, footer, header buttons, clock pill, icons and chart styling."""
+from datetime import datetime, timedelta
 
 import plotly.graph_objects as go
+import streamlit as st
 
-from utils.forecast_ui import clock
-
-KARACHI = ZoneInfo("Asia/Karachi")
-
-# Theme colours used in Plotly charts (CSS has the same values).
-GOLD = "#f5bd57"          # brand / recorded or actual values
-BLUE = "#60a5fa"          # highlights: peaks, predictions, rolling averages
-RED = "#f17b83"           # misses / largest gap
-SKY = "#38bdf8"           # error distribution bars
+from utils.config import BLUE, CHART_NOTE, CHART_TEXT, GOLD, NAVY, SURFACE, now_karachi
+from utils.formatting import clock, fmt
+from utils.styles import load_css
 
 PLOT_CONFIG = {"displayModeBar": False, "scrollZoom": False}
 SPIKES = dict(showspikes=True, spikemode="across", spikecolor="rgba(245,189,87,.45)",
@@ -24,8 +18,24 @@ FOOTER = (
 )
 
 
-def now_karachi():
-    return datetime.now(KARACHI)
+# =================================================================
+# Page layout pieces
+# =================================================================
+def setup_public_page(title, icon, *page_css):
+    """Page config + styles for the public pages (Home, Sign In, Traffic Dashboard).
+    Admin pages use setup_admin_page() in utils/admin_ui.py instead."""
+    st.set_page_config(page_title=f"Chronos-Traffic | {title}", page_icon=icon,
+                       layout="wide", initial_sidebar_state="collapsed")
+    load_css("main.css", *page_css, public=True)
+
+
+def divider():
+    """Gold-to-blue line between sections."""
+    st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+
+
+def footer():
+    st.markdown(FOOTER, unsafe_allow_html=True)
 
 
 def clock_pill(now=None):
@@ -38,11 +48,29 @@ def clock_pill(now=None):
     )
 
 
+def page_header(title_html, button_label, button_key, target_page, sign_out=False):
+    """Title block on the left; a red pill button and the date/time pill on the right, then a divider.
+
+    Used by the Traffic Dashboard (Back to Home) and every admin page (Log Out).
+    """
+    left, right = st.columns([3, 2], vertical_alignment="top")
+    with left:
+        st.markdown(title_html, unsafe_allow_html=True)
+    with right:
+        if st.button(button_label, key=button_key):
+            if sign_out:
+                st.session_state.pop("authenticated", None)
+                st.session_state.pop("user", None)
+            st.switch_page(target_page)
+        st.markdown(clock_pill(), unsafe_allow_html=True)
+    divider()
+
+
 # =================================================================
 # Line icons (Tabler Icons, MIT licence) embedded as SVG, so they work offline.
 # Colour comes from CSS (currentColor).
 # =================================================================
-_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+_SVG = ('<svg class="ct-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
         'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{}</svg>')
 ICONS = {
     "steering-wheel": _SVG.format('<path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/>'
@@ -66,6 +94,9 @@ ICONS = {
     "shield": _SVG.format('<path d="M11.46 20.846a12 12 0 0 1 -7.96 -14.846a12 12 0 0 0 8.5 -3a12 12 0 0 0 8.5 3'
                           'a12 12 0 0 1 -.09 7.06"/><path d="M15 19l2 2l4 -4"/>'),
     "trending-up": _SVG.format('<path d="M3 17l6 -6l4 4l8 -8"/><path d="M14 7l7 0l0 7"/>'),
+    "car": _SVG.format('<path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>'
+                       '<path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>'
+                       '<path d="M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"/>'),
     "calendar-week": _SVG.format('<path d="M4 7a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12z"/>'
                                  '<path d="M16 3v4"/><path d="M8 3v4"/><path d="M4 11h16"/>'
                                  '<path d="M8 14v4"/><path d="M12 14v4"/><path d="M16 14v4"/>'),
@@ -80,9 +111,9 @@ def chart_layout(fig, height, y_title, x_axis):
     fig.update_layout(
         height=height, margin=dict(l=10, r=10, t=30, b=10),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(245,189,87,0.03)",
-        font=dict(color="#bdd1e9"), showlegend=False,
+        font=dict(color=CHART_TEXT), showlegend=False,
         hovermode="x unified", dragmode="zoom",
-        hoverlabel=dict(bgcolor="#132036", bordercolor=GOLD, font=dict(color="#eef4ff")),
+        hoverlabel=dict(bgcolor=SURFACE, bordercolor=GOLD, font=dict(color="#eef4ff")),
         xaxis=dict(showgrid=False, title=None, **x_axis),
         yaxis=dict(gridcolor="rgba(148,163,184,.12)", rangemode="tozero", title=y_title, fixedrange=True),
     )
@@ -102,7 +133,36 @@ def highlight_marker(fig, x, y, text, color=BLUE):
     """Round marker with a small label above it (peak, busiest day, largest gap...)."""
     fig.add_trace(go.Scatter(
         x=[x], y=[y], mode="markers", hoverinfo="skip", showlegend=False,
-        marker=dict(size=12, color=color, line=dict(color="#0b1220", width=2)),
+        marker=dict(size=12, color=color, line=dict(color=NAVY, width=2)),
     ))
     fig.add_annotation(x=x, y=y, yshift=18, showarrow=False, text=text,
                        font=dict(color=color, size=11), bgcolor="rgba(19,32,54,.85)", borderpad=3)
+
+
+def day_axis(day):
+    """X axis covering one whole day (00:00-24:00) with a tick every 2 hours."""
+    start = datetime.combine(day, datetime.min.time())
+    return dict(range=[start, start + timedelta(days=1)], tickformat="%H:%M",
+                dtick=2 * 3600 * 1000, hoverformat="%I:%M %p", **SPIKES)
+
+
+def average_line(fig, value):
+    """Dotted grey line at the average, labelled 'Avg 123'."""
+    fig.add_hline(
+        y=value, line=dict(color="rgba(148,163,184,.55)", dash="dot", width=1),
+        annotation_text=f"Avg {fmt(value)}", annotation_position="top left",
+        annotation_font=dict(color=CHART_NOTE, size=10),
+    )
+
+
+# =================================================================
+# Stat cards under a chart (styles: .ct-chart-stats in admin.css)
+# =================================================================
+def stat(label, value, note, cls=""):
+    """One card: small label, big value (cls = peak / quiet / gold for colour), note underneath."""
+    return f'<div><span>{label}</span><strong class="{cls}">{value}</strong><small>{note}</small></div>'
+
+
+def chart_stats(*cards):
+    """Row of stat cards built with stat()."""
+    st.markdown(f'<div class="ct-chart-stats">{"".join(cards)}</div>', unsafe_allow_html=True)

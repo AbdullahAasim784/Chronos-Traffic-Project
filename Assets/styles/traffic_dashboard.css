@@ -1,11 +1,10 @@
 /* ================================================================
    Chronos-Traffic public forecast page (page-specific parts only).
    Background, red pill button, date/time pill, overview dots and selectboxes
-   are in main.css; the 6-hour panel, week outlook and map in forecast_components.css.
+   are in main.css; the 6-hour panel, week outlook and map in forecast_panels.css.
    ================================================================ */
 
-/* ---------- Page chrome: public page, no sidebar or header ---------- */
-[data-testid="stSidebar"],[data-testid="collapsedControl"],[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
+/* ---------- Page chrome (sidebar and toolbar are hidden by main.css on public pages) ---------- */
 .block-container {padding-top:4rem !important;}
 
 /* ---------- Header ---------- */

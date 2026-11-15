@@ -5,45 +5,26 @@ The panels themselves live in utils/forecast_ui.py (shared with the Admin Dashbo
 from datetime import datetime
 from html import escape
 
-import requests
 import streamlit as st
-from streamlit_folium import st_folium
 
-from utils.api_client import api_get  # type: ignore
+from utils.api_client import API_ERRORS, fetch
+from utils.formatting import clock, fmt, level
 from utils.forecast_ui import (
-    build_intervals, build_map, clock, fmt, forecast_picker, interval_panel, level, reference_caption,
-    six_hour_trend, week_outlook,
+    build_intervals, interval_panel, map_note, map_view, picker_row, six_hour_trend, week_outlook,
 )
-from utils.styles import load_css
-from utils.ui import FOOTER, clock_pill
+from utils.ui import divider, footer, page_header, setup_public_page
 
-st.set_page_config(page_title="Traffic Forecast | Chronos-Traffic", page_icon="🚦", layout="wide")
-load_css("main.css", "forecast_components.css", "forecast.css")
-
-API_ERRORS = (requests.RequestException, ValueError)
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def fetch(path, **params):
-    """Cached FastAPI call. Reruns reuse the response instead of asking the API again."""
-    return api_get(path, params) if params else api_get(path)
+setup_public_page("Traffic Forecast", "🚦", "forecast_panels.css", "traffic_dashboard.css")
 
 
 # =================================================================
 # Header: title left; Back to Home and the date / time pill right
 # =================================================================
-header_left, header_right = st.columns([3, 2], vertical_alignment="top")
-with header_left:
-    st.markdown(
-        '<div class="ct-title">Traffic Forecast</div>'
-        '<div class="ct-subtitle">Road-level vehicle forecasts and a seven-day outlook</div>',
-        unsafe_allow_html=True,
-    )
-with header_right:
-    if st.button("← Back to Home", key="forecast_back_home"):
-        st.switch_page("Home.py")
-    st.markdown(clock_pill(), unsafe_allow_html=True)
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+page_header(
+    '<div class="ct-title">Traffic Forecast</div>'
+    '<div class="ct-subtitle">Road-level vehicle forecasts and a seven-day outlook</div>',
+    "← Back to Home", "forecast_back_home", "Home.py",
+)
 
 
 # =================================================================
@@ -104,31 +85,12 @@ try:
 
     location = location_by_id[location_id]
     direction = direction_by_id[direction_id]
-    range_info = fetch("/forecast-range", direction_id=direction_id)
+    # Every forecast time for this direction (feeds the date / time picker).
+    times = [datetime.fromisoformat(t) for t in fetch("/forecast-times", direction_id=direction_id)]
 except API_ERRORS as exc:
     st.error(f"Could not retrieve location data: {exc}")
     st.stop()
 
-if not range_info.get("start") or not range_info.get("end"):
-    st.info("No forecasts for this road and direction.")
-    st.stop()
-
-
-def forecast_times():
-    """All forecast datetimes for this direction (feeds the date / time picker).
-    Uses /forecast-times if the backend has it, otherwise the first 7 days from /forecast-dashboard."""
-    try:
-        return [datetime.fromisoformat(t) for t in fetch("/forecast-times", direction_id=direction_id)]
-    except Exception:  # endpoint not added yet (404 / unexpected reply) -> fall back
-        rows = fetch("/forecast-dashboard", direction_id=direction_id, reference=range_info["start"])["forecasts"]
-        return [datetime.fromisoformat(x["datetime"]) for x in rows]
-
-
-try:
-    times = forecast_times()
-except API_ERRORS as exc:
-    st.error(f"Could not retrieve forecasts: {exc}")
-    st.stop()
 if not times:
     st.info("No forecasts for this road and direction.")
     st.stop()
@@ -142,17 +104,14 @@ with route_col:
         f'<span class="ct-ov-val direction">{escape(direction["heading"])}</span></div></div></div>',
         unsafe_allow_html=True,
     )
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+divider()
 
 
 # =================================================================
 # Row above the 6-hour panel: reference text left, Forecast date + time pickers right.
 # Starts at the next Karachi 15-minute slot, or the nearest time this road has forecasts for.
 # =================================================================
-note_col, date_col, time_col = st.columns([2.6, 1, 1], gap="medium", vertical_alignment="bottom")
-reference, snap_note = forecast_picker(times, f"forecast_{direction_id}", date_col, time_col)
-with note_col:
-    st.markdown(reference_caption(reference, snap_note), unsafe_allow_html=True)
+reference = picker_row(times, f"forecast_{direction_id}")
 try:
     data = fetch("/forecast-dashboard", direction_id=direction_id, reference=reference.strftime("%Y-%m-%d %H:%M:%S"))
 except API_ERRORS as exc:
@@ -167,20 +126,19 @@ forecast_by_dt = {datetime.fromisoformat(x["datetime"]): x for x in data["foreca
 intervals, valid_intervals, peak, quiet = build_intervals(forecast_by_dt, reference)
 interval_panel(intervals, peak, quiet, f"forecast_slide_{direction_id}_{reference:%Y%m%d%H%M}", reference)
 
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+divider()
 week_outlook(forecast_by_dt, reference)
 
 
 # =================================================================
 # Map and road insights (70/30). Values come from stored forecasts, not live traffic.
 # =================================================================
-lat, lon = data["location"].get("latitude"), data["location"].get("longitude")
 next_record = forecast_by_dt.get(reference) or {}
 next_congestion = next_record.get("congestion") or "Unavailable"
 next_count = fmt(next_record.get("predicted_count"))
 trend_text, trend_class, trend_symbol, trend_note = six_hour_trend(valid_intervals)
 
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+divider()
 with st.container(key="traffic_map_panel"):
     st.markdown(
         '<div class="ct-head"><div class="ct-section">Traffic Map &amp; Insights</div>'
@@ -190,14 +148,8 @@ with st.container(key="traffic_map_panel"):
     map_col, info_col = st.columns([7, 3], gap="medium", vertical_alignment="top")
 
     with map_col:
-        if lat is None or lon is None:
-            st.info("Map coordinates are unavailable for this location.")
-        else:
-            st_folium(
-                build_map(lat, lon, location["location_name"], direction["heading"], reference, next_record),
-                height=420, use_container_width=True, returned_objects=[],
-                key=f"traffic_map_{direction_id}_{reference:%Y%m%d%H%M}",
-            )
+        map_view(data["location"], direction["heading"], reference, next_record,
+                 key=f"traffic_map_{direction_id}_{reference:%Y%m%d%H%M}")
 
     with info_col:
         st.markdown(
@@ -224,9 +176,6 @@ with st.container(key="traffic_map_panel"):
             "</div></section>",
             unsafe_allow_html=True,
         )
-    st.markdown(
-        '<div class="ct-map-note">Map marker color represents the next stored forecast, not live traffic.</div>',
-        unsafe_allow_html=True,
-    )
+    map_note()
 
-st.markdown(FOOTER, unsafe_allow_html=True)
+footer()

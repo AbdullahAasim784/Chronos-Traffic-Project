@@ -5,27 +5,26 @@ The 6-hour panel, week outlook and map come from utils/forecast_ui.py,
 so they match the public Traffic Dashboard exactly.
 """
 import html
-import sqlite3
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from streamlit_folium import st_folium
 
 from utils.admin_ui import (
-    admin_header, divider, footer_and_stop, kpi_card, kpi_grid,
-    panel_heading, read_sql, route_selectors, setup_admin_page,
-)
-from utils.forecast_ui import (
-    build_intervals, build_map, clock, fmt, forecast_picker, interval_panel, level, reference_caption, week_outlook,
+    admin_header, footer_and_stop, kpi_card, kpi_grid, panel_heading, route_selectors, setup_admin_page,
 )
 from utils.anomaly_store import set_status, todays_alerts
-from utils.ui import BLUE, FOOTER, GOLD, RED, ICONS, PLOT_CONFIG, SPIKES, chart_layout, gold_area, highlight_marker
+from utils.config import BLUE, GOLD, INTERVALS_PER_DAY, RED
+from utils.db import DB_ERRORS, read_sql
+from utils.formatting import clock, fmt, level
+from utils.forecast_ui import build_intervals, interval_panel, map_note, map_view, picker_row, week_outlook
+from utils.ui import (
+    ICONS, PLOT_CONFIG, average_line, chart_layout, chart_stats, day_axis, divider, footer, gold_area,
+    highlight_marker, stat,
+)
 
-setup_admin_page("Admin Dashboard", "🚦", "forecast_components.css", "admin_dashboard.css")
-
-INTERVALS_PER_DAY = 96                      # 24 h of 15-minute forecasts
+setup_admin_page("Admin Dashboard", "🚦", "forecast_panels.css", "admin_dashboard.css")
 
 # How each logged anomaly type is shown: (icon, title, CSS kind).
 ALERT_STYLE = {
@@ -49,7 +48,7 @@ try:
         "SELECT datetime AS ts, predicted_count AS vehicles, congestion FROM forecasts "
         "WHERE direction_id = ? ORDER BY datetime", (direction_id,),
     )
-except sqlite3.Error as exc:
+except DB_ERRORS as exc:
     st.error(f"Forecast query unavailable: {exc}")
     footer_and_stop()
 
@@ -69,10 +68,7 @@ forecast_by_dt = {
 # Row just above the 6-hour panel: reference text left, Forecast date + time pickers right.
 # Starts at the next Karachi 15-minute slot, or the nearest time this road has forecasts for.
 divider()
-note_col, date_col, time_col = st.columns([2.6, 1, 1], gap="medium", vertical_alignment="bottom")
-reference, snap_note = forecast_picker(list(forecast_by_dt), f"admin_{direction_id}", date_col, time_col)
-with note_col:
-    st.markdown(reference_caption(reference, snap_note), unsafe_allow_html=True)
+reference = picker_row(list(forecast_by_dt), f"admin_{direction_id}")
 next_24h = forecast[(forecast["ts"] >= reference) & (forecast["ts"] < reference + timedelta(hours=24))]
 
 
@@ -109,7 +105,7 @@ try:
            ORDER BY avg_count DESC LIMIT 3""",
         (dataset_id,),
     )
-except sqlite3.Error:
+except DB_ERRORS:
     leaders = pd.DataFrame(columns=["location_name", "avg_count"])
 
 # 4. Congestion outlook: share of the next 24 h at each level.
@@ -225,22 +221,11 @@ with st.container(key="traffic_map_panel"):
     st.markdown(panel_heading("Location Map &amp; Anomaly Alerts", "Selected road overview"), unsafe_allow_html=True)
     map_col, alerts_col = st.columns([7, 3], gap="medium", vertical_alignment="top")
     with map_col:
-        lat, lon = location.get("latitude"), location.get("longitude")
-        if pd.notna(lat) and pd.notna(lon):
-            st_folium(
-                build_map(lat, lon, location["location_name"], direction["heading"], reference,
-                          forecast_by_dt.get(reference)),
-                height=420, use_container_width=True, returned_objects=[],
-                key=f"admin_map_{direction_id}_{reference:%Y%m%d%H%M}",
-            )
-        else:
-            st.info("Coordinates are unavailable for this location.")
+        map_view(location, direction["heading"], reference, forecast_by_dt.get(reference),
+                 key=f"admin_map_{direction_id}_{reference:%Y%m%d%H%M}")
     with alerts_col, st.container(key="alerts_panel"):
         anomaly_alerts()
-    st.markdown(
-        '<div class="ct-map-note">Map marker color represents the next stored forecast, not live traffic.</div>',
-        unsafe_allow_html=True,
-    )
+    map_note()
 
 
 # =================================================================
@@ -283,7 +268,6 @@ def forecast_chart(forecast, reference):
         peak_ts, peak_val = series.idxmax(), series.max()
         quiet_ts, quiet_val = series.idxmin(), series.min()
         mean_val = series.mean()
-        day_start = datetime.combine(day, datetime.min.time())
 
         fig = go.Figure()
         # Hourly: smooth curve. 15-min: straight segments with a dot on every interval,
@@ -295,33 +279,23 @@ def forecast_chart(forecast, reference):
             hovertemplate=f"<b>%{{y:,.0f}}</b> {unit}<extra></extra>",
         ))
         highlight_marker(fig, peak_ts, peak_val, f"Peak · {clock(peak_ts)}", color=RED)
-        fig.add_hline(
-            y=mean_val, line=dict(color="rgba(148,163,184,.55)", dash="dot", width=1),
-            annotation_text=f"Avg {fmt(mean_val)}", annotation_position="top left",
-            annotation_font=dict(color="#9fb0c6", size=10),
-        )
+        average_line(fig, mean_val)
         # Blue dot on the curve at the selected forecast time (its hour in the hourly view).
         ref_x = pd.Timestamp(reference).floor("h") if hourly else pd.Timestamp(reference)
         if ref_x in series.index and ref_x != peak_ts:
             highlight_marker(fig, ref_x, series[ref_x], f"Forecast · {clock(reference)}", color=BLUE)
-        chart_layout(fig, 360, unit, dict(
-            range=[day_start, day_start + timedelta(days=1)], tickformat="%H:%M", dtick=2 * 3600 * 1000,
-            hoverformat="%I:%M %p", **SPIKES,
-        ))
+        chart_layout(fig, 360, unit, day_axis(day))
         st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
 
-        st.markdown(
-            '<div class="ct-chart-stats">'
-            f'<div><span>Predicted total</span><strong>{fmt(series.sum())}</strong><small>vehicles · {day:%a %d %b}</small></div>'
-            f'<div><span>Predicted peak</span><strong class="peak">{clock(peak_ts)}</strong><small>{fmt(peak_val)} {unit}</small></div>'
-            f'<div><span>Quietest time</span><strong class="quiet">{clock(quiet_ts)}</strong><small>{fmt(quiet_val)} {unit}</small></div>'
-            f'<div><span>Predicted average</span><strong>{fmt(mean_val)}</strong><small>{unit}</small></div>'
-            "</div>",
-            unsafe_allow_html=True,
+        chart_stats(
+            stat("Predicted total", fmt(series.sum()), f"vehicles · {day:%a %d %b}"),
+            stat("Predicted peak", clock(peak_ts), f"{fmt(peak_val)} {unit}", "peak"),
+            stat("Quietest time", clock(quiet_ts), f"{fmt(quiet_val)} {unit}", "quiet"),
+            stat("Predicted average", fmt(mean_val), unit),
         )
 
 
 divider()
 forecast_chart(forecast, reference)
 
-st.markdown(FOOTER, unsafe_allow_html=True)
+footer()

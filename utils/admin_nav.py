@@ -1,8 +1,6 @@
 """Admin-only access check and sidebar navigation. Call both at the top of every admin page."""
 import streamlit as st
 
-from utils.styles import load_css
-
 # Only these pages appear in the admin sidebar.
 ADMIN_PAGES = [
     ("pages/7_Admin_Dashboard.py", "Admin Dashboard", "📊"),
@@ -22,14 +20,8 @@ def require_admin():
         st.stop()
 
 
-def admin_sidebar(load_styles=True):
-    """Draw the admin navigation in the sidebar.
-
-    setup_admin_page() already loads admin_nav.css together with the page CSS, so it passes load_styles=False.
-    """
-    if load_styles:
-        load_css("admin_nav.css")
-
+def admin_sidebar():
+    """Draw the admin navigation in the sidebar (styles: the sidebar section of admin.css)."""
     with st.sidebar:
         # To add your logo later, put <img class="ct-side-logo" src="..."> before the name block.
         st.markdown(
@@ -43,7 +35,7 @@ def admin_sidebar(load_styles=True):
         for path, label, icon in ADMIN_PAGES:
             st.page_link(path, label=label, icon=icon)
 
-        # App info, pinned to the bottom of the sidebar by admin_nav.css.
+        # App info, pinned to the bottom of the sidebar by admin.css.
         with st.container(key="ct_side_footer"):
             st.markdown(
                 '<div class="ct-side-footer">'

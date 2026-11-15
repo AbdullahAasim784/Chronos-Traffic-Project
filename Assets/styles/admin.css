@@ -1,8 +1,9 @@
 /* ================================================================
    Chronos-Traffic | shared ADMIN styles (all admin pages).
-   Loaded after main.css. Page-specific bits live in admin_dashboard.css,
-   model_performance.css and historical_analysis.css.
-   Gold = brand / structure; blue = chart highlights; status colours unchanged.
+   Loaded after main.css by setup_admin_page(). Includes the sidebar (bottom of this file).
+   Page-specific bits live in admin_dashboard.css, historical_analysis.css,
+   model_performance.css and anomaly.css.
+   Gold = brand / structure; blue = comparison lines; red = peak; green = quiet.
    ================================================================ */
 
 /* ---------- Page chrome ---------- */
@@ -89,7 +90,7 @@
 .ct-chart-stats span {font-size:.66rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;text-transform:uppercase;}
 .ct-chart-stats strong {font-size:1.15rem;font-weight:800;color:#f4f8ff;}
 .ct-chart-stats strong.peak {color:#f17b83;}
-.ct-chart-stats strong.quiet {color:#a5b4fc;}
+.ct-chart-stats strong.quiet {color:var(--ct-green);}
 .ct-chart-stats strong.gold {color:#f5bd57;}
 .ct-chart-stats strong.up {color:#75e3b1;}
 .ct-chart-stats strong.down {color:#ff9ca6;}
@@ -121,9 +122,8 @@
 /* ---------- Meter bar ---------- */
 .ct-meter {height:8px;border-radius:999px;overflow:hidden;background:#1d2c44;margin-top:.7rem;}
 .ct-meter span {display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#fde68a,#f5bd57,#d97706);
-  animation:ct-meter-grow 1s cubic-bezier(.22,.61,.36,1) .5s backwards;transform-origin:left;}
+  animation:ct-grow 1s cubic-bezier(.22,.61,.36,1) .5s backwards;transform-origin:left;}
 .ct-meter.blue span {background:linear-gradient(90deg,#93c5fd,#60a5fa,#3b82f6);}
-@keyframes ct-meter-grow {from {transform:scaleX(0);}}
 
 /* ---------- Legend chips in chart headings (colours set per page) ---------- */
 .ct-legend {display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;margin:.15rem 0 .6rem;font-size:.75rem;color:#b6c8dd;}
@@ -206,4 +206,70 @@
   .ct-meter span,.ct-table tbody tr {animation:none !important;}
   .ct-admin-kpi,.ct-kpi-icon svg,.ct-table tbody tr {transition:none !important;}
   .ct-admin-kpi:hover {transform:none !important;}
+}
+
+
+/* ================================================================
+   Admin sidebar (drawn by utils/admin_nav.py)
+   ================================================================ */
+[data-testid="stSidebar"] {
+  background:linear-gradient(180deg,#0f1b2d 0%,#0b1220 100%) !important;
+  border-right:1px solid #1e2d44;
+}
+/* Fixed sidebar: it never scrolls, the content fills exactly the window height */
+[data-testid="stSidebarContent"] {overflow:hidden !important;height:100%;display:flex;flex-direction:column;}
+[data-testid="stSidebar"] *,[data-testid="stSidebarContent"] {scrollbar-width:none;}
+[data-testid="stSidebar"] *::-webkit-scrollbar,[data-testid="stSidebarContent"]::-webkit-scrollbar {display:none;}
+/* Streamlit's top bar inside the sidebar (collapse button) keeps its own height */
+[data-testid="stSidebarHeader"] {flex:0 0 auto;}
+
+/* Brand block */
+.ct-side-brand {display:flex;align-items:center;gap:.7rem;padding:.2rem .35rem 1.1rem;margin-bottom:.4rem;border-bottom:1px solid #1e2d44;}
+/* Optional logo (add <img class="ct-side-logo"> in admin_nav.py) */
+.ct-side-logo {flex:0 0 40px;height:40px;object-fit:contain;}
+.ct-side-name {font-weight:800;font-size:1.02rem;letter-spacing:-.01em;color:#eef4ff;}
+.ct-side-role {font-size:.64rem;letter-spacing:.18em;font-weight:750;color:#f5bd57;margin-top:2px;}
+.ct-side-section {font-size:.64rem;letter-spacing:.16em;font-weight:750;color:#6f86a6;margin:.9rem .35rem .4rem;}
+
+/* Page links */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {
+  border-radius:12px;
+  padding:.55rem .75rem;
+  margin:.15rem 0;
+  border:1px solid transparent;
+  transition:background .2s ease,border-color .2s ease,transform .2s ease;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] p {font-weight:600;color:#cfdcec;font-size:.92rem;}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"]:hover {
+  background:rgba(148,163,184,.08);
+  border-color:transparent;
+  transform:translateX(3px);
+}
+/* Current page */
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] {
+  background:rgba(245,189,87,.1);
+  border-color:rgba(245,189,87,.4);
+  box-shadow:inset 3px 0 0 #f5bd57;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p {color:#ffffff;}
+
+/* ---------- App info footer, pinned to the bottom ---------- */
+[data-testid="stSidebarUserContent"] {flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding-bottom:1rem !important;}
+[data-testid="stSidebarUserContent"] > div:first-child {flex:1;display:flex;flex-direction:column;}
+[data-testid="stSidebarUserContent"] > div:first-child > [data-testid="stVerticalBlock"] {flex:1;}
+/* the footer block (or its wrapper, depending on Streamlit version) takes the leftover space above it */
+.st-key-ct_side_footer,
+[data-testid="stLayoutWrapper"]:has(> .st-key-ct_side_footer),
+[data-testid="element-container"]:has(.st-key-ct_side_footer) {margin-top:auto !important;}
+.st-key-ct_side_footer {padding-top:0.8rem;}
+.ct-side-footer {text-align:center;color:#94a8c2;line-height:1.35;padding:.9rem .4rem .2rem;border-top:1px solid #1e2d44;}
+.ct-side-version {display:inline-block;padding:.4rem 1rem;border-radius:12px;background:#132036;border:1px solid #263c58;color:#f5bd57;font-weight:700;font-size:.8rem;margin-bottom:.8rem;}
+.ct-side-copy {font-size:.72rem;color:#7f97b6;}
+
+/* Short windows: tighten spacing so everything still fits without scrolling */
+@media (max-height:640px) {
+  .ct-side-brand {padding-bottom:.6rem;}
+  .ct-side-section {margin:.5rem .35rem .25rem;}
+  [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"] {padding:.4rem .7rem;margin:.08rem 0;}
+  .ct-side-version {margin-bottom:.4rem;}
 }

@@ -9,3 +9,7 @@ font = "sans serif"
 [client]
 toolbarMode = "minimal"
 showSidebarNavigation = false
+
+[server]
+# Serves the static/ folder at /app/static/ (used for the Plus Jakarta Sans font files)
+enableStaticServing = true

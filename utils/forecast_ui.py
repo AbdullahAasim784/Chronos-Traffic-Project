@@ -1,88 +1,32 @@
 """Shared forecast UI for the public Traffic Dashboard and the Admin Dashboard.
 
 Both pages call these functions, so the 6-hour panel, the 7-day outlook and the map
-look and behave the same everywhere. Styles: Assets/styles/forecast_components.css.
+look and behave the same everywhere. Styles: Assets/styles/forecast_panels.css.
 """
 import base64
 from datetime import datetime, timedelta
 from html import escape
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import folium
 import streamlit as st
 from folium.plugins import Fullscreen
+from streamlit_folium import st_folium
 
-ROOT = Path(__file__).resolve().parent.parent
-ICON_PATH = ROOT / "Assets" / "icons" / "traffic_road_icon.png"
+from utils.config import ICONS_DIR, LEVEL_COLORS, karachi_naive
+from utils.formatting import clock, fmt, level
+from utils.ui import ICONS
+
+ROAD_ICON = ICONS_DIR / "traffic_road_icon.png"
 
 WINDOW_SIZE = 8      # interval slots visible at once
 SLIDE_STEP = 8       # slots moved per arrow click (set to 1 to move one interval at a time)
 OUTLOOK_SLOTS = 25   # 6 hours of 15-minute intervals (inclusive)
-LEVEL_COLORS = {"low": "#55dca4", "medium": "#e5b54c", "high": "#f17b83", "na": "#94a3b8"}
-
-# Line icons (Tabler Icons, MIT) as inline SVG; colour comes from CSS (currentColor).
-_SVG = ('<svg class="ct-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
-        'stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" '
-        'aria-hidden="true">{}</svg>')
-ICON_CLOCK = _SVG.format('<path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 7v5l3 3"/>')
-ICON_CAR = _SVG.format('<path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>'
-                       '<path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/>'
-                       '<path d="M5 17h-2v-6l2 -5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"/>')
 
 
 # =================================================================
-# Small helpers
+# Forecast date / time picker
 # =================================================================
-def fmt(value):
-    if value is None or value != value:  # None or NaN
-        return "—"
-    return f"{round(value):,}"
-
-
-def level(congestion):
-    """Map a congestion label to one CSS suffix: low / medium / high / na."""
-    key = str(congestion or "").strip().lower()
-    if key == "low":
-        return "low"
-    if key in ("medium", "moderate"):
-        return "medium"
-    if key == "high":
-        return "high"
-    return "na"
-
-
-def clock(dt):
-    return dt.strftime("%I:%M %p").lstrip("0")
-
-
-def reference_time(first_forecast, available=None):
-    """Earliest forecast date for a direction, at the next Karachi 15-minute slot.
-
-    If `available` (a set/dict of forecast datetimes) is given, the date moves forward
-    until a forecast exists at that clock time. This stops a road whose first forecast
-    day starts late (e.g. 11 PM) from showing "Unavailable" everywhere.
-    """
-    now = datetime.now(ZoneInfo("Asia/Karachi"))
-    next_slot = now.replace(second=0, microsecond=0) + timedelta(minutes=15 - now.minute % 15)
-    reference = datetime.combine(first_forecast.date(), next_slot.time())
-    if next_slot.date() != now.date():  # 23:45+ rolls over to the next day
-        reference += timedelta(days=1)
-    if available:
-        for _ in range(14):  # look ahead at most two weeks
-            if reference in available:
-                break
-            reference += timedelta(days=1)
-        else:
-            reference = datetime.combine(first_forecast.date(), next_slot.time())
-    return reference, now
-
-
-def karachi_now():
-    """Karachi time without timezone info (forecast times are stored that way)."""
-    return datetime.now(ZoneInfo("Asia/Karachi")).replace(tzinfo=None)
-
-
 def _minutes(t):
     return t.hour * 60 + t.minute
 
@@ -95,7 +39,7 @@ def default_reference(times):
     it snaps to the nearest time that does exist and explains why in `note`.
     """
     times = sorted(times)
-    now = karachi_now()
+    now = karachi_naive()
     slot = (now.replace(second=0, microsecond=0) + timedelta(minutes=15 - now.minute % 15)).time()
     exact = next((t for t in times if t.time() == slot), None)
     if exact is not None:
@@ -144,6 +88,17 @@ def reference_caption(reference, note=None):
         " · Stored predictions, not live traffic.</div>"
         + (f'<div class="ct-snap-note">{escape(note)}</div>' if note else "")
     )
+
+
+def picker_row(times, key):
+    """Row above the 6-hour panel: reference caption left, Forecast date + time pickers right.
+    Starts at the next Karachi 15-minute slot, or the nearest time this road has forecasts for.
+    Returns the chosen reference datetime."""
+    note_col, date_col, time_col = st.columns([2.6, 1, 1], gap="medium", vertical_alignment="bottom")
+    reference, note = forecast_picker(times, key, date_col, time_col)
+    with note_col:
+        st.markdown(reference_caption(reference, note), unsafe_allow_html=True)
+    return reference
 
 
 @st.cache_data(show_spinner=False)
@@ -235,7 +190,7 @@ def interval_panel(intervals, peak, quiet, state_key, reference=None):
 
     with st.container(key="forecast_interval_panel"):
         st.markdown(
-            '<div class="ct-panel-header"><span class="ct-panel-kicker">' + ICON_CLOCK + 'UPCOMING TRAFFIC FORECAST</span>'
+            '<div class="ct-panel-header"><span class="ct-panel-kicker">' + ICONS["clock"] + 'UPCOMING TRAFFIC FORECAST</span>'
             '<span class="ct-panel-hint">6-hour outlook</span></div>',
             unsafe_allow_html=True,
         )
@@ -245,7 +200,7 @@ def interval_panel(intervals, peak, quiet, state_key, reference=None):
         main_col, insights_col, _ = st.columns([2, 1.1, 0.06], gap="large", vertical_alignment="center")
 
         with main_col:
-            icon = icon_data_uri(str(ICON_PATH))
+            icon = icon_data_uri(str(ROAD_ICON))
             icon_html = f'<img class="ct-panel-icon" src="{icon}" alt="">' if icon else ""
             congestion = first["congestion"] if first else "Unavailable"
             when = (
@@ -336,8 +291,8 @@ def week_outlook(forecast_by_dt, reference):
         "compared at the same time across seven days.</div>"
         '<section class="ct-week-panel" aria-label="Upcoming week traffic forecast">'
         '<div class="ct-week-grid">' + "".join(days) + "</div>"
-        '<div class="ct-week-footer"><span class="ct-week-ico">' + ICON_CAR + '</span> Vehicle counts / 15 min '
-        '<span class="ct-week-footer-dot">·</span> <span class="ct-week-ico">' + ICON_CLOCK + '</span> '
+        '<div class="ct-week-footer"><span class="ct-week-ico">' + ICONS["car"] + '</span> Vehicle counts / 15 min '
+        '<span class="ct-week-footer-dot">·</span> <span class="ct-week-ico">' + ICONS["clock"] + '</span> '
         f"Compared at {escape(clock(reference))}</div></section>",
         unsafe_allow_html=True,
     )
@@ -377,3 +332,22 @@ def build_map(lat, lon, place, heading, reference, record):
         popup=folium.Popup(popup_html, max_width=320),
     ).add_to(traffic_map)
     return traffic_map
+
+
+def map_view(location, heading, reference, record, key):
+    """Folium map for one road (or a note when coordinates are missing). Never reruns the page."""
+    lat, lon = location.get("latitude"), location.get("longitude")
+    if lat is None or lon is None or lat != lat or lon != lon:   # missing or NaN
+        st.info("Map coordinates are unavailable for this location.")
+        return
+    st_folium(
+        build_map(lat, lon, location["location_name"], heading, reference, record),
+        height=420, use_container_width=True, returned_objects=[], key=key,
+    )
+
+
+def map_note():
+    st.markdown(
+        '<div class="ct-map-note">Map marker color represents the next stored forecast, not live traffic.</div>',
+        unsafe_allow_html=True,
+    )

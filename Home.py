@@ -1,46 +1,15 @@
+"""Chronos-Traffic home page: pick a dataset, then open the public Traffic Dashboard."""
 import html
-import sqlite3
+
 import streamlit as st
 
-from contextlib import closing
-from backend.database import DB_PATH
-from utils.styles import load_css
-from utils.ui import FOOTER
+from utils.db import DB_ERRORS, read_sql
+from utils.ui import divider, footer, setup_public_page
 
-st.set_page_config(
-    page_title="Chronos-Traffic | Home",
-    page_icon="🚦",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
+setup_public_page("Home", "🚦", "home.css")
 
-load_css("main.css", "home.css")
-
-@st.cache_data(ttl=60)
-def get_dataset_summary():
-    with closing(sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)) as conn:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute("""
-            SELECT d.dataset_id, d.dataset_name, d.region,
-                   COUNT(DISTINCT l.location_id) AS locations,
-                   COUNT(DISTINCT ld.direction_id) AS directions,
-                   (SELECT COUNT(*) FROM forecasts f
-                    JOIN location_directions fd ON f.direction_id = fd.direction_id
-                    JOIN locations fl ON fd.location_id = fl.location_id
-                    WHERE fl.dataset_id = d.dataset_id) AS forecasts
-            FROM datasets d
-            LEFT JOIN locations l ON l.dataset_id = d.dataset_id
-            LEFT JOIN location_directions ld ON ld.location_id = l.location_id
-            WHERE d.is_available = 1
-            GROUP BY d.dataset_id
-            ORDER BY d.dataset_name
-        """).fetchall()
-        return [dict(row) for row in rows]
-
-
-def fmt(value):
-    """Whole number with thousands separators."""
-    return f"{int(value or 0):,}"
+# Available datasets for the picker (cached for 5 minutes by read_sql).
+DATASETS_SQL = "SELECT dataset_id, dataset_name, region FROM datasets WHERE is_available = 1 ORDER BY dataset_name"
 
 
 # Top bar: brand on the left, Sign In on the right
@@ -71,8 +40,8 @@ st.markdown(
 
 # Load datasets
 try:
-    datasets = get_dataset_summary()
-except (sqlite3.Error, OSError) as exc:
+    datasets = read_sql(DATASETS_SQL).to_dict("records")
+except DB_ERRORS as exc:
     st.error(f"Could not read the local SQLite database: {exc}")
     st.stop()
 
@@ -101,7 +70,7 @@ with st.container(key="dataset_picker"):
         )
 
     selected = by_name[selected_name]
-    st.session_state["selected_dataset_id"] = selected["dataset_id"]
+    st.session_state["selected_dataset_id"] = int(selected["dataset_id"])
 
     with go_col:
         if st.button("Explore Forecasts  →", key="explore", type="primary", use_container_width=True):
@@ -116,7 +85,7 @@ features = [
     ("🗺️", "Location Insights", "Explore location-specific predictions and traffic conditions on a geographic view."),
 ]
 
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+divider()
 st.markdown(
     '<div class="ct-section-title">System Overview</div>'
     '<div class="ct-section-intro">Explore road traffic patterns, forecast upcoming conditions, '
@@ -145,7 +114,7 @@ steps = [
     ("Go deeper as admin", "Signed-in administrators get model performance, historical analysis and anomaly detection."),
 ]
 
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+divider()
 st.markdown('<div class="ct-section-title">How It Works</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="ct-steps">' + "".join(
@@ -164,7 +133,7 @@ st.markdown(
 # About 
 tech = ["Prophet", "CNN", "FastAPI", "SQLite", "Streamlit", "Plotly", "Folium"]
 
-st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+divider()
 st.markdown(
     '<div class="ct-about-grid">'
     "<div>"
@@ -184,4 +153,4 @@ st.markdown(
 
 
 # Footer
-st.markdown(FOOTER, unsafe_allow_html=True)
+footer()

@@ -2,15 +2,9 @@
 import streamlit as st
 
 from backend.auth import verify_login
-from utils.styles import load_css
+from utils.ui import setup_public_page
 
-st.set_page_config(
-    page_title="Chronos-Traffic | Sign In",
-    page_icon="🔐",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-load_css("main.css", "signin.css")
+setup_public_page("Sign In", "🔐", "signin.css")
 
 # Already signed in as admin: skip straight to the dashboard.
 if st.session_state.get("authenticated") and (st.session_state.get("user") or {}).get("role") == "admin":

@@ -67,7 +67,7 @@
 [class*="st-key-alert_na_"] .ct-alert-type {color:#cbd5e1;}
 .ct-alert-meta {font-size:.72rem;color:#93a8c3;margin-top:3px;line-height:1.4;overflow-wrap:anywhere;}
 .ct-astatus {flex:0 0 auto;font-size:.68rem;font-weight:750;white-space:nowrap;}
-.ct-astatus.active {color:#f5bd57;}
+.ct-astatus.active {color:#ff9ca6;}
 .ct-astatus.resolved {color:#55dca4;}
 
 /* Resolve (green) / Dismiss (red) buttons, white text, lined up under the text */
@@ -86,10 +86,6 @@
 .ct-alerts-shield {font-size:2rem;font-weight:800;line-height:1;color:#55dca4;}
 .ct-alerts-empty-title {font-weight:750;color:#e6f1ff;font-size:.98rem;}
 .ct-alerts-empty-text {font-size:.76rem;color:#93a8c3;line-height:1.55;max-width:250px;}
-
-/* ---------- Forecast chart: stat colours match the chart dots ---------- */
-.ct-chart-stats strong.peak {color:#f17b83;}    /* red peak dot */
-.ct-chart-stats strong.quiet {color:#55dca4;}
 
 /* ---------- Entrance animations (others come from admin.css) ---------- */
 .ct-admin-caption,.ct-snap-note {animation:ct-up .6s cubic-bezier(.22,.61,.36,1) .3s backwards;}

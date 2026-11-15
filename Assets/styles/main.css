@@ -1,15 +1,55 @@
 /* ================================================================
    Chronos-Traffic | shared styles, loaded FIRST on every page.
    Theme: classic gold (#fde68a -> #f5bd57 -> #d97706) on deep navy (#0b1220).
-   Page files (home.css, forecast.css, admin.css, ...) only add what is specific to them.
+   Page files (home.css, traffic_dashboard.css, admin.css, ...) only add what is specific to them.
+
+   Which page loads what:
+     Home ................ main + home
+     Sign In ............. main + signin
+     Traffic Dashboard ... main + forecast_panels + traffic_dashboard
+     Admin pages ......... main + admin (incl. sidebar) + their own file:
+                           admin_dashboard (+ forecast_panels), historical_analysis,
+                           model_performance, anomaly
+
+   Colour meaning (same on every page):
+     gold  = brand, headings, selected items      blue = primary buttons, comparison lines
+     green = low / quiet / resolved / all clear   amber = medium
+     red   = high / peak / active alert           sky  = flooded road
    ================================================================ */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+
+/* ---------- Font: Plus Jakarta Sans, stored in the project (static/fonts/) ----------
+   Served by Streamlit at /app/static/... (enableStaticServing in .streamlit/config.toml),
+   so the font works offline too, e.g. during the viva without internet. */
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-400.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-500.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:600;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-600.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-700.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:800;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-800.woff2') format('woff2');}
+
+/* ---------- Public pages (Home, Sign In, Traffic Dashboard): no sidebar, header or toolbar ----------
+   setup_public_page() in utils/ui.py adds the .ct-public-page marker; admin pages don't have it. */
+body:has(.ct-public-page) [data-testid="stSidebar"],
+body:has(.ct-public-page) [data-testid="stSidebarNav"],
+body:has(.ct-public-page) [data-testid="collapsedControl"],
+body:has(.ct-public-page) [data-testid="stHeader"],
+body:has(.ct-public-page) [data-testid="stToolbar"],
+body:has(.ct-public-page) [data-testid="stDecoration"],
+body:has(.ct-public-page) #MainMenu,
+body:has(.ct-public-page) footer {display:none !important;}
 
 :root {
-  --ct-bg:#0b1220; --ct-surface:#1f2937; --ct-border:#334155;
+  /* navy surfaces */
+  --ct-bg:#0b1220; --ct-surface:#132036; --ct-border:#263c58;
+  --ct-card:linear-gradient(150deg,#14263f 0%,#111d31 100%);
+  /* gold brand */
   --ct-gold:#f5bd57; --ct-gold-bright:#fcd34d;
   --ct-gold-gradient:linear-gradient(110deg,#fde68a 0%,#f5bd57 55%,#d97706 100%);
-  --ct-text:#f9fafb; --ct-muted:#b3c0d3; --ct-blue:#3b82f6;
+  /* text */
+  --ct-text:#f9fafb; --ct-muted:#b3c0d3;
+  /* actions + status */
+  --ct-blue:#3b82f6; --ct-blue-hover:#2563eb;
+  --ct-green:#55dca4; --ct-amber:#e5b54c; --ct-red:#f17b83; --ct-sky:#38bdf8;
   --ct-font:'Plus Jakarta Sans',sans-serif;
 }
 
@@ -26,6 +66,26 @@ html {scroll-behavior:smooth;}
 @keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
 @keyframes ct-pop {from {opacity:0;transform:scale(.92);}}
 @keyframes ct-fade {from {opacity:0;}}
+@keyframes ct-grow {from {transform:scaleX(0);}}   /* bars and meters filling from the left */
+
+/* ---------- Primary action buttons: solid blue, white text (Explore, Sign In, Analyze) ---------- */
+.st-key-explore button,
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button,
+.st-key-anomaly_analyze button {
+  border-radius:12px !important;border:none !important;
+  background:var(--ct-blue) !important;background-image:none !important;color:#ffffff !important;font-weight:700 !important;
+  box-shadow:0 8px 20px rgba(59,130,246,.25);
+  transition:background .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+.st-key-explore button p,
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button p,
+.st-key-anomaly_analyze button p {color:#ffffff !important;font-weight:700 !important;}
+.st-key-explore button:hover,
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button:hover,
+.st-key-anomaly_analyze button:hover:not(:disabled) {
+  background:var(--ct-blue-hover) !important;transform:translateY(-2px);box-shadow:0 12px 26px rgba(37,99,235,.35);
+}
+.st-key-anomaly_analyze button:disabled {background:var(--ct-blue) !important;opacity:.35;box-shadow:none;transform:none;}
 
 /* ---------- Divider, footer, section headings ---------- */
 .ct-divider {height:1px;background:linear-gradient(90deg,transparent,#f5bd57 45%,#3b82f6 70%,transparent);margin:1.7rem 0;}
@@ -93,4 +153,5 @@ html {scroll-behavior:smooth;}
 @media (prefers-reduced-motion:reduce) {
   .st-key-signin button,.st-key-back_home button,.st-key-forecast_back_home button,.st-key-admin_top_logout button {transition:none !important;}
   .st-key-signin button:hover,.st-key-back_home button:hover,.st-key-forecast_back_home button:hover,.st-key-admin_top_logout button:hover {transform:none !important;}
+  .st-key-explore button,[data-testid="stForm"] [data-testid="stFormSubmitButton"] button,.st-key-anomaly_analyze button {transition:none !important;transform:none !important;}
 }

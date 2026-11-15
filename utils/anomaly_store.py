@@ -5,31 +5,16 @@ Used by the Anomaly Detection page (save after Analyze) and the Admin Dashboard
 an alert from the dashboard.
 """
 import sqlite3
-from contextlib import closing
 from datetime import datetime, time, timedelta
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-from backend.database import DB_PATH
+from utils.config import TIME_FMT, karachi_naive
+from utils.db import connect_write
 
-KARACHI = ZoneInfo("Asia/Karachi")
-TIME_FMT = "%Y-%m-%d %H:%M:%S"                  # how detected_time is stored
 DUPLICATE_WINDOW = timedelta(minutes=10)       # same camera + same type within 10 min = not saved again
 LOGGED_TYPES = ("accident", "flooded", "uncertain")   # normal traffic is not logged
 STATUSES = ("active", "resolved", "dismissed")
-
-
-def _connect():
-    """Read-write connection with foreign keys on (cameras / users must exist)."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON")
-    return closing(conn)
-
-
-def now_karachi():
-    """Karachi time without timezone info, so it compares with the stored text times."""
-    return datetime.now(KARACHI).replace(tzinfo=None)
 
 
 def resolve_user_id(user):
@@ -38,7 +23,7 @@ def resolve_user_id(user):
     if user.get("user_id") is not None:
         return int(user["user_id"])
     if user.get("username"):
-        with _connect() as conn:
+        with connect_write() as conn:
             row = conn.execute("SELECT user_id FROM users WHERE username = ?", (user["username"],)).fetchone()
         return row[0] if row else None
     return None
@@ -58,8 +43,8 @@ def save_detection(camera_id, label, confidence_pct, user_id=None):
     if camera_id is None:
         return "no_camera", None
 
-    now = now_karachi()
-    with _connect() as conn:
+    now = karachi_naive()
+    with connect_write() as conn:
         if not conn.execute("SELECT 1 FROM cameras WHERE camera_id = ?", (camera_id,)).fetchone():
             return "no_camera", None
         recent = conn.execute(
@@ -84,9 +69,9 @@ def save_detection(camera_id, label, confidence_pct, user_id=None):
 def todays_alerts():
     """Today's alerts (since 12:00 AM Karachi), newest first, without dismissed ones.
     Returns None if the anomaly table doesn't exist yet."""
-    start = now_karachi().replace(hour=0, minute=0, second=0, microsecond=0)
+    start = karachi_naive().replace(hour=0, minute=0, second=0, microsecond=0)
     try:
-        with _connect() as conn:
+        with connect_write() as conn:
             return pd.read_sql_query(
                 """SELECT a.anomaly_id, a.detected_time, a.anomaly_type, a.confidence_score, a.status,
                           COALESCE(c.camera_name, 'Camera ' || a.camera_id) AS camera_name
@@ -102,7 +87,7 @@ def todays_alerts():
 def set_status(anomaly_id, status):
     if status not in STATUSES:
         raise ValueError(f"Unknown status: {status}")
-    with _connect() as conn, conn:
+    with connect_write() as conn, conn:
         conn.execute("UPDATE anomaly_logs SET status = ? WHERE anomaly_id = ?", (status, int(anomaly_id)))
 
 
@@ -116,7 +101,7 @@ def alerts_on_day(day, camera_id=None):
         camera_filter = "AND a.camera_id = ?"
         params.append(int(camera_id))
     try:
-        with _connect() as conn:
+        with connect_write() as conn:
             return pd.read_sql_query(
                 f"""SELECT a.anomaly_id, a.detected_time, a.anomaly_type, a.confidence_score, a.status,
                            COALESCE(c.camera_name, 'Camera ' || a.camera_id) AS camera_name
@@ -132,7 +117,7 @@ def alerts_on_day(day, camera_id=None):
 def camera_list():
     """{camera_id: camera_name} for the filters."""
     try:
-        with _connect() as conn:
+        with connect_write() as conn:
             return dict(conn.execute("SELECT camera_id, camera_name FROM cameras ORDER BY camera_id").fetchall())
     except sqlite3.OperationalError:
         return {}

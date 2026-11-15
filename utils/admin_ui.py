@@ -1,19 +1,16 @@
-"""Building blocks shared by every admin page.
+"""Building blocks shared by every admin page: page setup, header,
+Dataset -> Location -> Direction selectors, KPI cards, meters and panel headings.
 
-Each admin page reads SQLite directly (so it works when FastAPI is down) and uses the same
-page setup, header, Dataset -> Location -> Direction selectors and KPI cards.
+Admin pages read SQLite directly (utils/db.py), so they work even when FastAPI is down.
 """
 import html
-import sqlite3
-from contextlib import closing
 
-import pandas as pd
 import streamlit as st
 
-from backend.database import DB_PATH
 from utils.admin_nav import admin_sidebar, require_admin
+from utils.db import DB_ERRORS, read_sql
 from utils.styles import load_css
-from utils.ui import FOOTER, clock_pill, now_karachi
+from utils.ui import divider, footer, page_header
 
 
 # =================================================================
@@ -25,29 +22,17 @@ def setup_admin_page(page_title, icon, *page_css):
         page_title=f"Chronos-Traffic | {page_title}", page_icon=icon,
         layout="wide", initial_sidebar_state="expanded",
     )
-    load_css("main.css", "admin.css", "admin_nav.css", *page_css)
+    load_css("main.css", "admin.css", *page_css)
     # Remember which page ran last, so a page can tell "just arrived" from "rerun on the same page".
     st.session_state["ct_previous_page"] = st.session_state.get("ct_current_page")
     st.session_state["ct_current_page"] = page_title
     require_admin()
-    admin_sidebar(load_styles=False)
-
-
-# =================================================================
-# Data access (read-only)
-# =================================================================
-def connect():
-    return closing(sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True))
-
-
-@st.cache_data(ttl=300, show_spinner=False)
-def read_sql(query, params=()):
-    with connect() as conn:
-        return pd.read_sql_query(query, conn, params=params)
+    admin_sidebar()
 
 
 def footer_and_stop():
-    st.markdown(FOOTER, unsafe_allow_html=True)
+    """Footer, then stop the page (used after an error or empty-data message)."""
+    footer()
     st.stop()
 
 
@@ -58,26 +43,12 @@ def admin_header(title, subtitle=None):
     user = st.session_state.get("user") or {}
     name = html.escape(str(user.get("username") or user.get("name") or "Administrator"))
     welcome = f"{html.escape(subtitle)} · " if subtitle else ""
-
-    left, right = st.columns([3, 2], vertical_alignment="top")
-    with left:
-        st.markdown(
-            '<div class="ct-admin-eyebrow">ADMINISTRATOR CONSOLE</div>'
-            f'<div class="ct-admin-heading">{html.escape(title)}</div>'
-            f'<div class="ct-admin-welcome">{welcome}Signed in as <strong>{name}</strong></div>',
-            unsafe_allow_html=True,
-        )
-    with right:
-        if st.button("↪ Log Out", key="admin_top_logout"):
-            st.session_state.pop("authenticated", None)
-            st.session_state.pop("user", None)
-            st.switch_page("Home.py")
-        st.markdown(clock_pill(now_karachi()), unsafe_allow_html=True)
-    divider()
-
-
-def divider():
-    st.markdown('<div class="ct-divider"></div>', unsafe_allow_html=True)
+    page_header(
+        '<div class="ct-admin-eyebrow">ADMINISTRATOR CONSOLE</div>'
+        f'<div class="ct-admin-heading">{html.escape(title)}</div>'
+        f'<div class="ct-admin-welcome">{welcome}Signed in as <strong>{name}</strong></div>',
+        "↪ Log Out", "admin_top_logout", "Home.py", sign_out=True,
+    )
 
 
 # =================================================================
@@ -93,7 +64,7 @@ def route_selectors(prefix, eyebrow):
         datasets = read_sql(
             "SELECT dataset_id, dataset_name, region FROM datasets WHERE is_available = 1 ORDER BY dataset_name"
         )
-    except (sqlite3.Error, OSError) as exc:
+    except DB_ERRORS as exc:
         st.error(f"Unable to read traffic database: {exc}")
         footer_and_stop()
     if datasets.empty:
@@ -142,7 +113,7 @@ def route_selectors(prefix, eyebrow):
                 "Direction", list(direction_by_id),
                 format_func=lambda i: str(direction_by_id[i]["heading"]), key=f"{prefix}_direction_{location_id}",
             )
-    except sqlite3.Error as exc:
+    except DB_ERRORS as exc:
         st.error(f"Could not load location/direction selectors: {exc}")
         footer_and_stop()
 

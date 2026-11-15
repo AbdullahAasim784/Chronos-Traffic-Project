@@ -117,7 +117,7 @@
           mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 12h15M13 5.5l6.5 6.5-6.5 6.5'/%3E%3C/svg%3E") center/contain no-repeat;
 }
 .st-key-ct_prev_interval button::before {transform:scaleX(-1);}  /* same arrow, flipped */
-.st-key-forecast_interval_panel [data-testid="stButton"] button:hover:not(:disabled) {background:#24406a;border-color:#4b6a92;transform:scale(1.06);}
+.st-key-forecast_interval_panel [data-testid="stButton"] button:hover:not(:disabled) {background:#1c3150;border-color:var(--ct-gold);transform:scale(1.06);}
 .st-key-forecast_interval_panel [data-testid="stButton"] button:disabled {opacity:.25;}
 
 /* ================================================================
@@ -161,7 +161,7 @@
 .ct-map-value {color:#f9fafb;font-size:1.06rem;font-weight:750;line-height:1.35;overflow-wrap:anywhere;}
 .ct-map-road {font-size:1.15rem;}
 .ct-map-direction {font-size:.85rem;color:#b6c8dd;margin-top:3px;}
-.ct-map-separator {height:1px;background:#3d4b60;margin:16px 0;}
+.ct-map-separator {height:1px;background:var(--ct-border);margin:16px 0;}
 .ct-map-count {color:#f5bd57;font-size:clamp(1.8rem,2.5vw,2.4rem);font-weight:800;line-height:1.25;}
 .ct-map-count span {color:#b6c8dd;font-size:.76rem;font-weight:500;white-space:nowrap;}
 .ct-map-status {font-size:.9rem;font-weight:750;margin-top:4px;}

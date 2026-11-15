@@ -5,32 +5,24 @@ Reads SQLite directly (same as the Admin Dashboard), so it works when FastAPI is
 Tables used: model_metrics (MAE / RMSE / R2) and forecast_validation (timestamp-level rows).
 """
 import html
-import sqlite3
-from datetime import datetime, timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
 from utils.admin_ui import (
-    admin_header, divider, footer_and_stop, kpi_card, kpi_grid, meter,
-    panel_heading, read_sql, route_selectors, setup_admin_page,
+    admin_header, footer_and_stop, kpi_card, kpi_grid, meter, panel_heading, route_selectors, setup_admin_page,
 )
-from utils.forecast_ui import fmt
-from utils.ui import BLUE, FOOTER, GOLD, ICONS, PLOT_CONFIG, RED, SPIKES, chart_layout, highlight_marker
+from utils.config import BLUE, CHART_NOTE, GOLD, RED
+from utils.db import DB_ERRORS, read_sql
+from utils.formatting import fmt, num
+from utils.ui import ICONS, PLOT_CONFIG, SPIKES, chart_layout, day_axis, divider, footer, highlight_marker
 
 setup_admin_page("Model Performance", "🎯", "model_performance.css")
 
 ACTUAL = GOLD                                # actual (recorded) counts
 PREDICT = BLUE                               # predicted counts, so the two lines contrast
 BAND_FILL = "rgba(96,165,250,0.14)"          # confidence interval belongs to the prediction
-
-
-def num(value, digits=2):
-    """Decimal formatting; fmt() from forecast_ui rounds to whole numbers."""
-    if value is None or pd.isna(value):
-        return "—"
-    return f"{value:,.{digits}f}"
 
 
 admin_header("Model Performance", "Prophet forecasts evaluated against recorded traffic")
@@ -48,7 +40,7 @@ try:
         "mae, rmse, r2_score FROM model_metrics WHERE direction_id = ? ORDER BY evaluation_type",
         (direction_id,),
     )
-except sqlite3.Error as exc:
+except DB_ERRORS as exc:
     st.error(f"Model metrics unavailable: {exc}")
     footer_and_stop()
 
@@ -71,7 +63,7 @@ try:
         "FROM forecast_validation WHERE direction_id = ? AND evaluation_type = ? ORDER BY datetime",
         (direction_id, chosen),
     ).copy()
-except sqlite3.Error as exc:
+except DB_ERRORS as exc:
     st.error(f"Validation rows unavailable: {exc}")
     footer_and_stop()
 
@@ -140,10 +132,10 @@ ratio_note = f" · RMSE/MAE ratio {rmse / mae:.2f}" if pd.notna(mae) and pd.notn
 
 kpi_grid(
     kpi_card(ICONS["ruler"], "MAE",
-               f'<div class="ct-admin-kpi-value">{num(mae)}<span class="ct-unit">vehicles</span></div>',
+               f'<div class="ct-admin-kpi-value">{num(mae, 2)}<span class="ct-unit">vehicles</span></div>',
                "Mean absolute error · average miss per 15-minute interval"),
     kpi_card(ICONS["function"], "RMSE",
-               f'<div class="ct-admin-kpi-value">{num(rmse)}<span class="ct-unit">vehicles</span></div>',
+               f'<div class="ct-admin-kpi-value">{num(rmse, 2)}<span class="ct-unit">vehicles</span></div>',
                "Root mean squared error · weighs large misses more" + ratio_note),
     kpi_card(ICONS["target"], "R² SCORE",
                f'<div class="ct-admin-kpi-value gold">{num(r2, 3)}</div>{meter(r2_pct)}',
@@ -227,7 +219,7 @@ def comparison_chart(validation):
             line=dict(color=PREDICT, width=2.6, shape="spline", smoothing=0.6),
             customdata=frame[["min_predicted", "max_predicted"]].to_numpy(),
             hovertemplate=("Predicted <b>%{y:,.0f}</b> "
-                           "<span style='color:#9fb0c6'>(range %{customdata[0]:,.0f}–%{customdata[1]:,.0f})</span>"
+                           f"<span style='color:{CHART_NOTE}'>(range %{{customdata[0]:,.0f}}–%{{customdata[1]:,.0f}})</span>"
                            "<extra></extra>"),
         ))
 
@@ -238,12 +230,9 @@ def comparison_chart(validation):
             highlight_marker(fig, miss_ts, frame.loc[miss_ts, "actual"], f"Largest gap · {gap.max():,.0f}", color=RED)
 
         if choice == "All days":
-            x_axis = dict(tickformat="%a %d %b", dtick=24 * 3600 * 1000, hoverformat="%a %d %b · %I:%M %p")
+            x_axis = dict(tickformat="%a %d %b", dtick=24 * 3600 * 1000, hoverformat="%a %d %b · %I:%M %p", **SPIKES)
         else:
-            day_start = datetime.combine(days[options.index(choice) - 1], datetime.min.time())
-            x_axis = dict(range=[day_start, day_start + timedelta(days=1)], tickformat="%H:%M",
-                          dtick=2 * 3600 * 1000, hoverformat="%I:%M %p")
-        x_axis.update(SPIKES)
+            x_axis = day_axis(days[options.index(choice) - 1])
         chart_layout(fig, 400, unit, x_axis)
         st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
 
@@ -317,7 +306,7 @@ try:
            ORDER BY m.mae""",
         (dataset_id, chosen),
     )
-except sqlite3.Error:
+except DB_ERRORS:
     summary = pd.DataFrame()
 
 with st.container(key="panel_mp_compare"):
@@ -342,7 +331,7 @@ with st.container(key="panel_mp_compare"):
             f"<td>{html.escape(str(r.location_name))}"
             + ('<span class="ct-mp-you">YOU</span>' if r.direction_id == direction_id else "")
             + f"</td><td>{html.escape(str(r.heading))}</td>"
-            f"<td>{num(r.mae)}</td><td>{num(r.rmse)}</td>"
+            f"<td>{num(r.mae, 2)}</td><td>{num(r.rmse, 2)}</td>"
             f'<td><div class="ct-mp-r2">{meter(r.r2_score * 100 if pd.notna(r.r2_score) else 0)}'
             f"<b>{num(r.r2_score, 3)}</b></div></td>"
             f"<td>{fmt(r.matched_records)}</td></tr>"
@@ -355,4 +344,4 @@ with st.container(key="panel_mp_compare"):
             unsafe_allow_html=True,
         )
 
-st.markdown(FOOTER, unsafe_allow_html=True)
+footer()

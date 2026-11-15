@@ -2,9 +2,6 @@
    Chronos-Traffic home page
    ========================== */
 
-/* Public pages only */
-[data-testid="stSidebar"],[data-testid="collapsedControl"],[data-testid="stHeader"],[data-testid="stToolbar"],[data-testid="stDecoration"],#MainMenu,footer {display:none !important;}
-
 .block-container {padding-top:2.4rem !important;}
 
 /* Top bar */
@@ -47,8 +44,8 @@
   margin:.6rem auto 0 !important;
   align-self:center;
   box-sizing:border-box;
-  background:linear-gradient(145deg,rgba(31,41,55,.95),rgba(24,33,48,.95));
-  border:1px solid #334155;
+  background:var(--ct-card);
+  border:1px solid var(--ct-border);
   border-radius:20px;
   padding:1.05rem 1.2rem .85rem;
   gap:.65rem;
@@ -59,24 +56,15 @@
 .st-key-dataset_picker [data-baseweb="select"] > div {
   min-height:46px;
   border-radius:12px !important;
-  background:#111827 !important;
-  border:1px solid #3b4b63 !important;
+  background:var(--ct-surface) !important;
+  border:1px solid var(--ct-border) !important;
   transition:border-color .2s ease,box-shadow .2s ease;
 }
-.st-key-dataset_picker [data-baseweb="select"] > div:hover {border-color:#5b8fd6 !important;}
-.st-key-dataset_picker [data-baseweb="select"] > div:focus-within {border-color:#3b82f6 !important;box-shadow:0 0 0 3px rgba(59,130,246,.18);}
+.st-key-dataset_picker [data-baseweb="select"] > div:hover {border-color:var(--ct-gold) !important;}
+.st-key-dataset_picker [data-baseweb="select"] > div:focus-within {border-color:var(--ct-gold) !important;box-shadow:0 0 0 3px rgba(245,189,87,.14);}
 
-.st-key-explore button {
-  min-height:46px;
-  border-radius:12px !important;
-  border:none !important;
-  background:linear-gradient(135deg,#3b82f6,#2563eb) !important;
-  color:#ffffff !important;
-  font-weight:700 !important;
-  box-shadow:0 8px 20px rgba(37,99,235,.28);
-  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
-}
-.st-key-explore button:hover {transform:translateY(-2px);filter:brightness(1.08);box-shadow:0 12px 26px rgba(37,99,235,.38);}
+/* Explore button: shared solid blue style from main.css, only the height is set here */
+.st-key-explore button {min-height:46px;}
 
 /* Section headings */
 .ct-divider {margin:1.9rem 0 1.6rem;}  
@@ -86,7 +74,7 @@
 /* Feature cards */
 .ct-feature-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;align-items:stretch;}
 .ct-feature {
-  background:var(--ct-surface);
+  background:var(--ct-card);
   border:1px solid var(--ct-border);
   border-radius:18px;
   padding:1.3rem 1.2rem 1.35rem;
@@ -101,15 +89,14 @@
   position:absolute;
   left:0;top:0;right:0;
   height:3px;
-  background:linear-gradient(90deg,#3b82f6,#f5bd57);
+  background:linear-gradient(90deg,#fde68a,#f5bd57,#d97706);
   opacity:.55;
   transition:opacity .22s ease;
 }
 .ct-feature:hover {
   transform:translateY(-6px);
-  border-color:#6488b9;
-  background:#25344a;
-  box-shadow:0 14px 30px rgba(0,0,0,.26),0 0 0 1px rgba(59,130,246,.08);
+  border-color:var(--ct-gold);
+  box-shadow:0 14px 30px rgba(0,0,0,.26),0 0 0 1px rgba(245,189,87,.08);
 }
 .ct-feature:hover::before {opacity:1;}
 
@@ -121,15 +108,15 @@
   place-items:center;
   font-size:1.3rem;
   border-radius:12px;
-  background:rgba(59,130,246,.12);
-  border:1px solid rgba(59,130,246,.25);
+  background:rgba(245,189,87,.1);
+  border:1px solid rgba(245,189,87,.28);
 }
 .ct-feature-title {color:#f9fafb;font-size:1.05rem;font-weight:750;line-height:1.3;}
 .ct-feature-text {color:#b9c8da;font-size:.9rem;line-height:1.6;}
 
 /* How it works */
 .ct-steps {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-top:1rem;}
-.ct-step {display:flex;gap:.9rem;align-items:flex-start;padding:1.1rem 1.2rem;border-radius:16px;background:rgba(31,41,55,.45);border:1px solid var(--ct-border);}
+.ct-step {display:flex;gap:.9rem;align-items:flex-start;padding:1.1rem 1.2rem;border-radius:16px;background:var(--ct-surface);border:1px solid var(--ct-border);}
 .ct-step-num {
   flex:0 0 34px;
   height:34px;
@@ -137,7 +124,7 @@
   display:grid;
   place-items:center;
   font-weight:800;
-  color:#111827;
+  color:var(--ct-bg);
   background:linear-gradient(135deg,#fde68a,#d97706);
 }
 .ct-step-title {color:#f3f6fb;font-weight:750;font-size:.98rem;margin-bottom:.25rem;}
@@ -146,7 +133,7 @@
 /* About */
 .ct-about-grid {display:grid;grid-template-columns:1.7fr 1fr;gap:1.6rem;align-items:center;}
 .ct-about {color:#b9c8da;line-height:1.8;margin-top:.6rem;}
-.ct-tech-card {background:var(--ct-surface);border:1px solid var(--ct-border);border-radius:18px;padding:1.2rem 1.25rem;}
+.ct-tech-card {background:var(--ct-card);border:1px solid var(--ct-border);border-radius:18px;padding:1.2rem 1.25rem;}
 .ct-tech-label {font-size:.74rem;letter-spacing:.16em;font-weight:750;color:#94b5db;margin-bottom:.8rem;}
 .ct-chips {display:flex;flex-wrap:wrap;gap:.5rem;}
 .ct-chip {padding:.35rem .8rem;border-radius:999px;font-size:.8rem;font-weight:650;color:#dbe7f7;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);}

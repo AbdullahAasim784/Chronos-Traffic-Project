@@ -186,7 +186,7 @@ def create_database():
 
         CREATE TABLE IF NOT EXISTS cameras (
             camera_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            camera_name TEXT NOT NULL UNIQUE,
+            camera_name TEXT NOT NULL UNIQUE
         );
 
 
@@ -203,8 +203,8 @@ def create_database():
             anomaly_type TEXT NOT NULL,
             confidence_score REAL
                 CHECK (confidence_score BETWEEN 0 AND 1),
-            status TEXT NOT NULL DEFAULT 'new'
-                CHECK (status IN ('new', 'acknowledged')),
+            status TEXT NOT NULL DEFAULT 'active'
+                CHECK (status IN ('active', 'resolved', 'dismissed')),
 
             FOREIGN KEY (camera_id)
                 REFERENCES cameras(camera_id),
@@ -237,6 +237,9 @@ def create_database():
 
         CREATE INDEX IF NOT EXISTS idx_anomaly_camera
             ON anomaly_logs(camera_id);
+
+        CREATE INDEX IF NOT EXISTS idx_anomaly_time
+            ON anomaly_logs(detected_time);
 
         """)
 

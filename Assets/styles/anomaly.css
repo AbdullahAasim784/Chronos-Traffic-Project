@@ -4,8 +4,7 @@
    (same classic gold theme as the other admin pages).
    ================================================================ */
 
-@keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
-@keyframes ct-fade {from {opacity:0;}}
+/* Keyframes (ct-up, ct-fade, ct-grow) and the blue Analyze button style live in main.css. */
 
 .ct-section {font-size:1.3rem;font-weight:750;margin:0 0 .9rem;color:#F9FAFB;}
 
@@ -37,7 +36,7 @@
 .st-key-anomaly_clear {position:absolute !important;top:22px;right:22px;z-index:5;width:auto !important;}
 .st-key-anomaly_clear button {
   width:36px;height:36px;min-height:36px;padding:0 !important;border-radius:50% !important;
-  background:#e5484d !important;border:2px solid rgba(255,255,255,.85) !important;color:#fff !important;
+  background:#d9434e !important;border:2px solid rgba(255,255,255,.85) !important;color:#fff !important;
   font-size:.95rem !important;font-weight:800 !important;line-height:1;
   box-shadow:0 6px 16px rgba(0,0,0,.4);transition:transform .2s ease,background .2s ease;
 }
@@ -80,16 +79,8 @@
 .ct-src-empty .ct-src-place {margin-top:0;font-size:.98rem;color:#cfdcec;}
 .ct-src-note {font-size:.78rem;color:#8ea3bf;margin-top:.3rem;line-height:1.5;}
 
-/* Analyze: solid blue, white text, no gradient */
-.st-key-anomaly_analyze button {
-  min-height:52px;border-radius:12px !important;border:none !important;
-  background:#3b82f6 !important;background-image:none !important;color:#ffffff !important;font-weight:800 !important;
-  box-shadow:0 8px 22px rgba(59,130,246,.25);
-  transition:transform .2s ease,box-shadow .2s ease,background .2s ease;
-}
-.st-key-anomaly_analyze button p {color:#ffffff !important;font-weight:800 !important;}
-.st-key-anomaly_analyze button:hover:not(:disabled) {background:#2563eb !important;transform:translateY(-2px);box-shadow:0 12px 28px rgba(59,130,246,.35);}
-.st-key-anomaly_analyze button:disabled {background:#3b82f6 !important;opacity:.35;box-shadow:none;}
+/* Analyze: shared solid blue style from main.css; only the size is set here */
+.st-key-anomaly_analyze button {min-height:52px;}
 
 .ct-model-chip {display:flex;align-items:center;justify-content:center;gap:.45rem;font-size:.74rem;color:#8ea3bf;}
 .ct-model-chip span {width:7px;height:7px;border-radius:50%;}
@@ -109,7 +100,6 @@
 .ct-verdict-conf span {font-size:2rem;font-weight:850;color:#f4f8ff;letter-spacing:-.03em;margin-right:.2rem;}
 .ct-conf-track {height:8px;border-radius:999px;background:#1d2c44;overflow:hidden;margin-top:.45rem;}
 .ct-conf-track span {display:block;height:100%;border-radius:999px;background:var(--c);animation:ct-grow .9s cubic-bezier(.22,.61,.36,1) .2s backwards;transform-origin:left;}
-@keyframes ct-grow {from {transform:scaleX(0);}}
 .ct-verdict-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin-top:1rem;}
 .ct-verdict-grid div {display:flex;flex-direction:column;gap:.15rem;padding:.55rem .65rem;border-radius:12px;background:rgba(11,18,32,.45);}
 .ct-verdict-grid span,.ct-verdict-action span {font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;font-weight:750;color:#7f97b6;}
