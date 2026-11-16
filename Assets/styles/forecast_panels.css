@@ -1,13 +1,10 @@
 /* ================================================================
-   Shared forecast components
    6-hour panel, 7-day outlook and map panel.
-   Loaded by the public Traffic Dashboard and the Admin Dashboard,
-   so both pages look and animate the same. Theme: classic gold on navy.
+   Used by Public Traffic Dashboard and the Admin Dashboard,
    ================================================================ */
-
 /* Keyframes (ct-up, ct-pop, ct-fade), .ct-section and the .ct-head row live in main.css. */
 
-/* ---------- Row above the 6-hour panel: reference text left, date + time pickers right ---------- */
+/* Row above the 6-hour panel: reference text left, date + time pickers right */
 .ct-ref-caption {color:#8ea3bf;font-size:.86rem;line-height:1.5;padding-bottom:.4rem;}
 .ct-ref-caption strong {color:#eef4ff;font-weight:750;}
 .ct-snap-note {margin-top:-.1rem;padding-bottom:.4rem;font-size:.8rem;color:#f2ca76;line-height:1.45;}
@@ -28,13 +25,10 @@
 /* Icon and count share one row with a small, fixed gap. */
 .ct-panel-main {display:flex;align-items:center;gap:18px;}
 .ct-panel-icon {width:56px;height:56px;flex:0 0 56px;object-fit:contain;
-  /* Recolours the black PNG. brightness(0) makes it black, invert(1) turns it white.
-     Softer grey: invert(.8). Original black: delete this filter line. */
+  /* Recolours the black PNG into white. */
   filter:brightness(0) invert(1);}
 .ct-panel-count-row {display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
-/* Forecast date / time, filling the space right of the count */
-/* margin-left = distance from the count; bigger value = further right */
-.ct-panel-when {margin-left:clamp(28px,4vw,64px);padding-left:clamp(14px,2vw,28px);border-left:1px solid #263c58;display:flex;flex-direction:column;gap:.75rem;}
+.ct-panel-when {margin-left:2px;padding-left:clamp(14px,2vw,28px);border-left:1px solid #263c58;display:flex;flex-direction:column;gap:.75rem;}
 .ct-panel-when span {display:block;font-size:.64rem;letter-spacing:.12em;font-weight:750;color:#7f97b6;}
 .ct-panel-when strong {display:block;font-size:.98rem;font-weight:750;color:#f4f8ff;margin-top:.15rem;white-space:nowrap;}
 .ct-panel-count {font-size:clamp(3.2rem,5vw,4.2rem);font-weight:800;color:#f5bd57;line-height:1.1;letter-spacing:-.05em;}
@@ -46,7 +40,7 @@
 .ct-panel-status .high {color:#ff9ca6;}
 .ct-panel-status .na {color:#b6c2d4;}
 
-.ct-panel-insight {display:flex;gap:10px;align-items:flex-start;margin:6px 0 16px;}
+.ct-panel-insight {display:flex;gap:10px;align-items:flex-start;margin:6px 0 16px;margin-left:50px;}
 .ct-insight-icon {font-size:1.3rem;font-weight:800;min-width:24px;}
 .ct-insight-icon.peak {color:#f5bd57;}
 .ct-insight-icon.quiet {color:#75e3b1;}
@@ -70,12 +64,10 @@
 .ct-panel-slot-level.high {background:rgba(240,95,111,.15);color:#ff9ca6;}
 .ct-panel-slot-level.na {background:rgba(148,163,184,.13);color:#b6c2d4;}
 
-/* Entrance: on load the pills flow in left to right after the panel appears.
-   (Defined before the slide rules so a click's slide animation takes priority.) */
+/* Entrance: on load the pills flow in left to right after the panel appears.*/
 .ct-native-slot {animation:ct-up .5s cubic-bezier(.22,.61,.36,1) backwards;animation-delay:calc(.55s + var(--delay,0) * 45ms);}
 
-/* Slide animation: slots glide in one after another in the direction of travel.
-   Two identical keyframe names per direction let the animation restart on every click. */
+/* Slide animation: slots glide in one after another in the direction of travel. */
 @keyframes ct-in-next-0 {from {opacity:0;transform:translateX(34px);} to {opacity:1;transform:none;}}
 @keyframes ct-in-next-1 {from {opacity:0;transform:translateX(34px);} to {opacity:1;transform:none;}}
 @keyframes ct-in-prev-0 {from {opacity:0;transform:translateX(-34px);} to {opacity:1;transform:none;}}
@@ -91,8 +83,7 @@
 .ct-slide-prev-0 {animation-name:ct-in-prev-0;}
 .ct-slide-prev-1 {animation-name:ct-in-prev-1;}
 
-/* Round arrow buttons. The arrow is an SVG shape drawn by CSS (no icon font needed),
-   coloured by the button's text colour. The "Previous"/"Next" label is hidden visually. */
+/* Round arrow buttons. SVG shape arrow, the "Previous"/"Next" label is hidden visually. */
 .st-key-forecast_interval_panel [data-testid="stButton"] button {
   position:relative;
   width:46px;height:46px;min-width:46px;min-height:46px;
@@ -130,11 +121,10 @@
 .ct-week-panel {background:linear-gradient(150deg,#14263f 0%,#111d31 100%);border:1px solid #263c58;box-shadow:0 8px 28px rgba(0,0,0,.18);border-radius:24px;padding:14px 16px 11px;overflow:hidden;}
 .ct-week-grid {display:grid;grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;column-gap:10px;}
 .ct-week-day {min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:14px 4px 15px;border-radius:14px;position:relative;transition:background-color .2s ease,box-shadow .2s ease;}
-/* No hover effect: the days are not clickable */
+
 /* First day = the day being shown: fixed highlight with a gold top line */
 .ct-week-day:first-child {background:#1c3150;box-shadow:inset 0 3px 0 #f5bd57,0 6px 18px rgba(0,0,0,.22);}
 .ct-week-day:first-child .ct-week-weekday,.ct-week-day:first-child .ct-week-date {color:#fcd34d;}
-/* Divider sits in the middle of the gap, so it never touches the highlighted first day */
 .ct-week-day + .ct-week-day::before {content:"";position:absolute;left:-5.5px;top:14px;bottom:14px;width:1px;background:#2f4562;}
 .ct-week-day:nth-child(2)::before {display:none;}
 .ct-week-weekday {font-size:.79rem;color:#9cb8d4;font-weight:650;}

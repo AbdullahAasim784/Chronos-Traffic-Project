@@ -102,14 +102,11 @@
 
 .ct-feature-head {display:flex;align-items:center;gap:.75rem;margin-bottom:.8rem;}
 .ct-feature-icon {
-  flex:0 0 44px;
+  flex:0 0 25px;
   height:44px;
   display:grid;
   place-items:center;
-  font-size:1.3rem;
-  border-radius:12px;
-  background:rgba(245,189,87,.1);
-  border:1px solid rgba(245,189,87,.28);
+  font-size:1.8rem;
 }
 .ct-feature-title {color:#f9fafb;font-size:1.05rem;font-weight:750;line-height:1.3;}
 .ct-feature-text {color:#b9c8da;font-size:.9rem;line-height:1.6;}
