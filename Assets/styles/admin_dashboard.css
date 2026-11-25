@@ -1,0 +1,99 @@
+/* ================================================================
+   Chronos-Traffic | Admin Dashboard (page-specific parts only).
+   Background, header, Log Out, clock, overview rows, selectors and KPI cards
+   come from main.css + admin.css (classic gold on navy), same as the other pages.
+   ================================================================ */
+
+/* ---------- Forecast reference row (above the KPI cards) ---------- */
+.ct-admin-caption {color:#8ea3bf;font-size:.86rem;line-height:1.5;padding-bottom:.35rem;}
+.ct-admin-caption strong {color:#eef4ff;font-weight:750;}
+.ct-snap-note {margin-top:.3rem;font-size:.8rem;color:#f2ca76;line-height:1.45;}
+
+/* ---------- Top 3 list (gold shades, like the overview dots) ---------- */
+.ct-admin-ranking {display:flex;flex-direction:column;gap:.45rem;margin-top:.8rem;}
+.ct-admin-rank-row {display:flex;align-items:baseline;gap:.5rem;font-size:.76rem;}
+.ct-rank-no {flex:0 0 18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:.64rem;font-weight:800;color:#0b1220;background:#fde68a;}
+.ct-admin-rank-row:nth-child(2) .ct-rank-no {background:#f5bd57;}
+.ct-admin-rank-row:nth-child(3) .ct-rank-no {background:#d97706;}
+.ct-rank-name {flex:1;min-width:0;color:#e6f1ff;overflow-wrap:anywhere;line-height:1.35;}
+.ct-admin-rank-row strong {white-space:nowrap;color:#f5bd57;font-size:.76rem;}
+
+/* ---------- Congestion outlook bar ---------- */
+.ct-cong-low {color:#75e3b1;}
+.ct-cong-medium {color:#f2ca76;}
+.ct-cong-high {color:#ff9ca6;}
+.ct-cong-bar {display:flex;height:8px;border-radius:999px;overflow:hidden;background:#1d2c44;margin-top:.75rem;}
+.ct-cong-bar span {height:100%;transition:width .6s ease;}
+.ct-cong-bar .low,.ct-cong-legend i.low {background:#55dca4;}
+.ct-cong-bar .medium,.ct-cong-legend i.medium {background:#e5b54c;}
+.ct-cong-bar .high,.ct-cong-legend i.high {background:#f17b83;}
+.ct-cong-legend {display:flex;flex-wrap:wrap;gap:.35rem .75rem;margin-top:.55rem;font-size:.7rem;color:#b6c8dd;}
+.ct-cong-legend span {display:inline-flex;align-items:center;gap:.3rem;}
+.ct-cong-legend i {width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+/* ---------- Anomaly alerts (today) ---------- */
+.st-key-alerts_panel {border-left:1px solid #42516a;padding:3px 0 6px clamp(14px,1.8vw,24px);min-height:390px;gap:.6rem;}
+.ct-alerts-head {display:flex;align-items:center;gap:.55rem;}
+.ct-alerts-title {font-size:.73rem;letter-spacing:.11em;font-weight:800;}
+.ct-alerts-count {margin-left:auto;min-width:24px;height:22px;padding:0 .45rem;border-radius:999px;display:grid;place-items:center;font-size:.72rem;font-weight:800;color:#0b1220;}
+.ct-live-dot {width:8px;height:8px;border-radius:50%;}
+/* All clear = green, active alerts = red */
+.ct-alerts-head.clear .ct-alerts-title {color:#55dca4;}
+.ct-alerts-head.clear .ct-alerts-count {background:#55dca4;}
+.ct-alerts-head.clear .ct-live-dot {background:#55dca4;animation:ct-pulse 1.8s ease-out infinite;}
+.ct-alerts-head.alert .ct-alerts-title {color:#ff6b74;}
+.ct-alerts-head.alert .ct-alerts-count {background:#ef4450;color:#fff;}
+.ct-alerts-head.alert .ct-live-dot {background:#ef4450;animation:ct-pulse-red 1.4s ease-out infinite;}
+@keyframes ct-pulse {0% {box-shadow:0 0 0 0 rgba(85,220,164,.55);} 100% {box-shadow:0 0 0 9px rgba(85,220,164,0);}}
+@keyframes ct-pulse-red {0% {box-shadow:0 0 0 0 rgba(239,68,80,.6);} 100% {box-shadow:0 0 0 9px rgba(239,68,80,0);}}
+.ct-alerts-sub {font-size:.7rem;color:#7f97b6;margin-top:.15rem;}
+
+/* Scrolling list */
+.st-key-alerts_scroll {padding-right:6px;scrollbar-width:thin;scrollbar-color:#34506f transparent;}
+.st-key-alerts_scroll > div {gap:0;}
+
+/* One alert per row, rows separated by a thin divider (no cards) */
+[class*="st-key-alert_"] {gap:.55rem;padding:.75rem .1rem .8rem;border-bottom:1px solid #263c58;animation:ct-up .4s ease backwards;}
+[class*="st-key-alert_"] [data-testid="stMarkdownContainer"],
+[class*="st-key-alert_"] [data-testid="stMarkdown"] {margin-bottom:0 !important;}   /* stops text overlapping the buttons */
+.ct-arow {display:flex;gap:.6rem;align-items:flex-start;}
+.ct-arow.resolved {opacity:.6;}
+.ct-arow-body {flex:1;min-width:0;}
+.ct-arow-top {display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;}
+.ct-alert-no {flex:0 0 20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:.66rem;font-weight:800;color:#cfe0f5;background:#22344f;}
+.ct-alert-type {font-size:.88rem;font-weight:750;color:#f4f8ff;}
+[class*="st-key-alert_high_"] .ct-alert-type {color:#ff9ca6;}
+[class*="st-key-alert_flood_"] .ct-alert-type {color:#7dd3fc;}
+[class*="st-key-alert_na_"] .ct-alert-type {color:#cbd5e1;}
+.ct-alert-meta {font-size:.72rem;color:#93a8c3;margin-top:3px;line-height:1.4;overflow-wrap:anywhere;}
+.ct-astatus {flex:0 0 auto;font-size:.68rem;font-weight:750;white-space:nowrap;}
+.ct-astatus.active {color:#ff9ca6;}
+.ct-astatus.resolved {color:#55dca4;}
+
+/* Resolve (green) / Dismiss (red) buttons, white text, lined up under the text */
+[class*="st-key-alert_"] [data-testid="stHorizontalBlock"] {padding-left:calc(20px + .6rem);}
+[class*="st-key-resolve_"] button,[class*="st-key-dismiss_"] button {
+  min-height:32px !important;height:32px;padding:0 .6rem !important;border-radius:999px !important;border:0 !important;
+  color:#fff !important;font-weight:700 !important;transition:filter .2s ease,transform .2s ease;
+}
+[class*="st-key-resolve_"] button p,[class*="st-key-dismiss_"] button p {font-size:.76rem !important;font-weight:700 !important;color:#fff !important;}
+[class*="st-key-resolve_"] button {background:#1f9d63 !important;}
+[class*="st-key-dismiss_"] button {background:#d9434e !important;}
+[class*="st-key-resolve_"] button:hover,[class*="st-key-dismiss_"] button:hover {filter:brightness(1.12);transform:translateY(-1px);}
+
+/* Empty state: plain text, no box */
+.ct-alerts-empty {min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.45rem;padding:1rem .5rem;}
+.ct-alerts-shield {font-size:2rem;font-weight:800;line-height:1;color:#55dca4;}
+.ct-alerts-empty-title {font-weight:750;color:#e6f1ff;font-size:.98rem;}
+.ct-alerts-empty-text {font-size:.76rem;color:#93a8c3;line-height:1.55;max-width:250px;}
+
+/* ---------- Entrance animations (others come from admin.css) ---------- */
+.ct-admin-caption,.ct-snap-note {animation:ct-up .6s cubic-bezier(.22,.61,.36,1) .3s backwards;}
+
+/* ---------- Responsive ---------- */
+@media (max-width:640px) {
+  .st-key-alerts_panel {min-height:0;border-left:0;border-top:1px solid #42516a;padding:16px 2px 4px;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .ct-admin-caption,.ct-snap-note,[class*="st-key-alert_"],.ct-live-dot {animation:none !important;}
+}

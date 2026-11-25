@@ -1,214 +1,156 @@
-import streamlit as st
-import pandas as pd
+"""Chronos-Traffic home page: pick a dataset, then open the public Traffic Dashboard."""
+import html
 
-# Pag Settings
-st.set_page_config(
-    page_title="Chronos Traffic",
-    page_icon="🚦",
-    layout="wide",
+import streamlit as st
+
+from utils.db import DB_ERRORS, read_sql
+from utils.ui import divider, footer, setup_public_page
+
+setup_public_page("Home", "🚦", "home.css")
+
+# Available datasets for the picker (cached for 5 minutes by read_sql).
+DATASETS_SQL = "SELECT dataset_id, dataset_name, region FROM datasets WHERE is_available = 1 ORDER BY dataset_name"
+
+
+# Top bar: brand on the left, Sign In on the right
+brand_col, _, signin_col = st.columns([3, 5, 1.3], vertical_alignment="center")
+
+with brand_col:
+    st.markdown(
+        '<div class="ct-brand"><span class="ct-brand-dot"></span>Chronos-Traffic</div>',
+        unsafe_allow_html=True,
+    )
+
+with signin_col:
+    if st.button("Sign In", key="signin", use_container_width=True):
+        st.switch_page("pages/6_Sign_In.py")
+
+
+# Main Title
+st.markdown(
+    '<section class="ct-hero">'
+    '<div class="ct-eyebrow">INTELLIGENT TRANSPORTATION SYSTEM</div>'
+    '<h1 class="ct-title">CHRONOS-TRAFFIC</h1>'
+    '<div class="ct-subtitle">AI-Driven Spatio-Temporal Traffic Forecasting'
+    '<br>&amp; Road Anomaly Detection</div>'
+    '</section>',
+    unsafe_allow_html=True,
 )
 
-# Load Data
-forecast = pd.read_csv("Data/Telemetry_Forecast.csv")
 
-# Header + CSS
-st.markdown("""
-<div style='text-align:center;'>
+# Load datasets
+try:
+    datasets = read_sql(DATASETS_SQL).to_dict("records")
+except DB_ERRORS as exc:
+    st.error(f"Could not read the local SQLite database: {exc}")
+    st.stop()
 
-<h1 style='font-size:58px;color:#e8cb2c;'>
-🚦 CHRONOS TRAFFIC PROJECT
-</h1>
+if not datasets:
+    st.warning("No datasets are available yet. Import data and mark a dataset as available.")
+    st.stop()
 
-<p style='font-size:24px;color:#a7bcd9;'>
-AI-Driven Spatio-Temporal Traffic Forecasting
-<br>
-& Road Anomaly Detection System
-</p>
+by_name = {row["dataset_name"]: row for row in datasets}
 
-<h4 style='text-align:center;color:#989b9c;margin-left:50px;'>
-FINAL YEAR PROJECT PROTOTYPE
-</h4>
+if st.session_state.get("selected_dataset_name") not in by_name:
+    st.session_state["selected_dataset_name"] = next(iter(by_name))
 
-</div>
-""", unsafe_allow_html=True)
 
-st.subheader("System Overview")
+# Dataset picker
+with st.container(key="dataset_picker"):
+    st.markdown('<div class="ct-picker-title">Choose a dataset to explore</div>', unsafe_allow_html=True)
 
-st.subheader("📂Dataset: Australian Traffic Telemetry")
-st.markdown("""
-<div style="font-size:20px;color:#989b9c;"
-<p> • Prototype Telemetry Dataset • Trained on January–March Data • Used for Traffic Forecasting</p>
-</div>
-""", unsafe_allow_html=True)
+    pick_col, go_col = st.columns([3, 2], vertical_alignment="center", gap="small")
 
-st.divider()
+    with pick_col:
+        selected_name = st.selectbox(
+            "Available traffic datasets",
+            options=list(by_name),
+            key="selected_dataset_name",
+            label_visibility="collapsed",
+        )
 
-# Metric Cards + CSS
-st.markdown("""
-<style>
-.metric{
-    background:#1F2937;
-    padding:5px;
-    border-radius:30px;
-    height:100px;
-    text-align:center;
-    margin:auto;
-}
-</style>
-""", unsafe_allow_html=True)
+    selected = by_name[selected_name]
+    st.session_state["selected_dataset_id"] = int(selected["dataset_id"])
 
-c1,c2,c3,c4 = st.columns(4)
+    with go_col:
+        if st.button("Explore Forecasts  →", key="explore", type="primary", use_container_width=True):
+            st.switch_page("pages/1_Traffic_Dashboard.py")
 
-with c1:
-    st.markdown(f"""
-    <div class="metric">
-    <h4>📍 Locations</h4>
-    <h1 style="color:#e8cb2c; margin:-30px; font-size:40px;">{forecast["location"].nunique()}</h1>
-    </div>
-""", unsafe_allow_html=True)
 
-with c2:
-    st.markdown(f"""
-    <div class="metric">
-    <h4>🧭 Directions</h4>
-    <h1 style="color:#e8cb2c; margin:-30px; font-size:40px;">{forecast["heading"].nunique()}</h1>
-    </div>
-""", unsafe_allow_html=True)
+# System overview 
+features = [
+    ("📈", "Traffic Forecasting", "Explore Prophet-based vehicle-count forecasts and predicted congestion levels."),
+    ("📊", "Historical Analysis", "Discover trends and traffic patterns across locations and travel directions."),
+    ("🚨", "Anomaly Detection", "Identify accidents and challenging road conditions using CNN-based image classification."),
+    ("🗺️", "Location Insights", "Explore location-specific predictions and traffic conditions on a geographic view."),
+]
 
-with c3:
-    st.markdown(f"""
-    <div class="metric">
-    <h4>📊 Records</h4>
-    <h1 style="color:#e8cb2c; margin:-30px; font-size:40px;">{len(forecast):}</h1>
-    </div>
-""", unsafe_allow_html=True)
+divider()
+st.markdown(
+    '<div class="ct-section-title">System Overview</div>'
+    '<div class="ct-section-intro">Explore road traffic patterns, forecast upcoming conditions, '
+    "and understand how intelligent analysis supports transportation decisions.</div>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="ct-feature-grid">' + "".join(
+        '<div class="ct-feature">'
+        '<div class="ct-feature-head">'
+        f'<span class="ct-feature-icon">{icon}</span>'
+        f'<div class="ct-feature-title">{html.escape(title)}</div>'
+        "</div>"
+        f'<div class="ct-feature-text">{html.escape(text)}</div>'
+        "</div>"
+        for icon, title, text in features
+    ) + "</div>",
+    unsafe_allow_html=True,
+)
 
-with c4:
-    st.markdown(f"""
-    <div class="metric">
-    <h4>✨ AI Models</h4>
-    <h1 style="color:#e8cb2c; margin:-30px; font-size:30px;"> &nbsp Prophet + CNN</h1>
-    </div>
-""", unsafe_allow_html=True)
 
-# CSS for Feature boxes
-st.markdown("""
-<style>
-.feature-card{
-    background-color:#1F2937;
-    border-radius:15px;
-    padding:20px;
-    border-left:5px solid #3B82F6;
-    height:230px;
-    width:auto;
-    margin:auto;
-}
+# How it works
+steps = [
+    ("Choose a dataset", "Pick a region from the selector above to load its monitored locations."),
+    ("Explore forecasts", "See predicted vehicle counts and congestion levels for each location and direction."),
+    ("Go deeper as admin", "Signed-in administrators get model performance, historical analysis and anomaly detection."),
+]
 
-.feature-card h3{
-    color:white;
-}
+divider()
+st.markdown('<div class="ct-section-title">How It Works</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="ct-steps">' + "".join(
+        '<div class="ct-step">'
+        f'<span class="ct-step-num">{i}</span>'
+        "<div>"
+        f'<div class="ct-step-title">{html.escape(title)}</div>'
+        f'<div class="ct-step-text">{html.escape(text)}</div>'
+        "</div></div>"
+        for i, (title, text) in enumerate(steps, 1)
+    ) + "</div>",
+    unsafe_allow_html=True,
+)
 
-.feature-card p{
-    color:#CBD5E1;
-    font-size:16px;
-    line-height:1.5;
-}
 
-.feature-card:hover{
-    border-color:#60A5FA;
-    box-shadow:0 0 18px rgba(59,130,246,.35);
-}
-</style>
-""", unsafe_allow_html=True)
+# About 
+tech = ["Prophet", "CNN", "FastAPI", "SQLite", "Streamlit", "Plotly", "Folium"]
 
-col1,col2,col3,col4=st.columns(4)
+divider()
+st.markdown(
+    '<div class="ct-about-grid">'
+    "<div>"
+    '<div class="ct-section-title">About Chronos-Traffic</div>'
+    '<div class="ct-about">Chronos-Traffic is an AI-powered intelligent transportation system '
+    "that combines traffic forecasting with road-scene anomaly detection. Traffic forecasts are generated "
+    "using Prophet, while a convolutional neural network (CNN) supports classification of normal traffic, "
+    "accidents, and challenging road conditions.</div>"
+    "</div>"
+    '<div class="ct-tech-card">'
+    '<div class="ct-tech-label">BUILT WITH</div>'
+    '<div class="ct-chips">' + "".join(f'<span class="ct-chip">{t}</span>' for t in tech) + "</div>"
+    "</div>"
+    "</div>",
+    unsafe_allow_html=True,
+)
 
-with col1:
-    st.markdown("""
-    <div class="feature-card">
-    <h3>📈 Traffic Forecasting</h3>
-    <p> Predict future traffic volumes using Facebook Prophet for intelligent congestion forecasting.</p>
-    </div>
-""", unsafe_allow_html=True)
 
-with col2:
-    st.markdown("""
-    <div class="feature-card">
-    <h3>📊 Historical Analysis</h3>
-    <p> Analyze historical traffic trends with interactive charts and statistics.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-with col3:
-    st.markdown("""
-    <div class="feature-card">
-    <h3>🚨 Anomaly Detection</h3>
-    <p> Identify accidents and challenging road situations using a CNN-based image classifier.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-with col4:
-    st.markdown("""
-    <div class="feature-card">
-    <h3>🗺️ Interactive Dashboard</h3>
-    <p> Visualize traffic forecasts, congestion levels and anomaly alerts in one place.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-st.subheader("📖 About Chronos Traffic")
-st.markdown("""
-<div style="font-size:20px;color:#989b9c;"
-<p>Chronos Traffic is an AI-powered Intelligent Transportation System prototype that combines traffic forecasting and road anomaly detection.
-
-The system predicts future traffic congestion using Facebook Prophet and classifies road scenes into Normal Traffic, Accident, 
-and Challenging Environment using a Convolutional Neural Network (CNN).</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-st.caption("© 2026 Chronos-Traffic | Bahria University Karachi Campus | Final Year Project Prototype")
-
-# Sidebar
-with st.sidebar:
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style=" text-align:center; color:#94A3B8; line-height:1.2;">
-
-    <div style="
-        font-size:18px;
-        color:white;
-        font-weight:700;
-        margin-top:10px;
-        margin-bottom:5px;">
-        🚦 Chronos-Traffic
-    </div>
-
-    <div style="font-size:14px; margin-bottom:10px;">
-        AI-Driven Spatio-Temporal <br>
-        Traffic Forecasting & Anomaly Detection
-    </div>
-
-    <div style="
-        display:inline-block;
-        background:#1F2937;
-        border:1px solid #334155;
-        border-radius:12px;
-        padding:8px 18px;
-        color:#60A5FA;
-        font-weight:600;
-        font-size:14px;
-        margin-bottom:10px;">
-        Version 1.0
-    </div>
-
-    <div style="font-size:13px;">
-        © 2026 Bahria University<br>
-        Computer Science Department
-    </div>
-
-    </div>
-    """, unsafe_allow_html=True)
+# Footer
+footer()

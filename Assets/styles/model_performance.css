@@ -1,0 +1,29 @@
+/* ================================================================
+   Chronos-Traffic | Model Performance (page-specific parts only).
+   Summary card, meters, legend, panels and tables are shared in admin.css.
+   ================================================================ */
+
+/* Eval-type switch (only shown when a direction has more than one evaluation) */
+.st-key-mp_eval_type {margin-bottom:.6rem;}
+
+/* ---------- Validation records: numbers right-aligned, error coloured by direction ---------- */
+.ct-mp-vtable th:not(:first-child):not(:last-child),
+.ct-mp-vtable td:not(:first-child):not(:last-child) {text-align:right;}
+.ct-mp-vtable td:first-child {color:#eef4ff;font-weight:600;white-space:nowrap;}
+.ct-mp-vtable td.over,.ct-mp-table-note .over {color:#93c5fd;}
+.ct-mp-vtable td.under,.ct-mp-table-note .under {color:#fcd34d;}
+.ct-mp-vtable td:last-child {width:26%;}
+.ct-mp-table-note {font-size:.72rem;color:#7f97b6;margin:.1rem .2rem 0;}
+
+/* ---------- Location comparison ---------- */
+.ct-mp-callout {font-size:.86rem;color:#a9bdd6;margin:.1rem 0 .9rem;}
+.ct-mp-callout strong {color:#eef4ff;}
+.ct-table tr.is-current {background:rgba(245,189,87,.09);box-shadow:inset 3px 0 0 #f5bd57;}
+.ct-table tr.is-current td:nth-child(2) {color:#fcd34d;font-weight:750;}
+.ct-mp-rank {width:22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;font-size:.66rem;font-weight:800;color:#cfe0f5;background:#22344f;}
+tr:nth-child(1) .ct-mp-rank {background:#fde68a;color:#0b1220;}
+tr:nth-child(2) .ct-mp-rank {background:#f5bd57;color:#0b1220;}
+tr:nth-child(3) .ct-mp-rank {background:#d97706;color:#0b1220;}
+.ct-mp-r2 {display:flex;align-items:center;gap:.6rem;}
+.ct-mp-r2 .ct-meter {flex:1;min-width:60px;margin:0;height:6px;}
+.ct-mp-you {margin-left:.45rem;font-size:.6rem;letter-spacing:.1em;font-weight:800;color:#0b1220;background:#f5bd57;border-radius:999px;padding:.12rem .45rem;}

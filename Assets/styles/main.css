@@ -1,0 +1,157 @@
+/* ================================================================
+   Chronos-Traffic | shared styles, loaded FIRST on every page.
+   Theme: classic gold (#fde68a -> #f5bd57 -> #d97706) on deep navy (#0b1220).
+   Page files (home.css, traffic_dashboard.css, admin.css, ...) only add what is specific to them.
+
+   Which page loads what:
+     Home ................ main + home
+     Sign In ............. main + signin
+     Traffic Dashboard ... main + forecast_panels + traffic_dashboard
+     Admin pages ......... main + admin (incl. sidebar) + their own file:
+                           admin_dashboard (+ forecast_panels), historical_analysis,
+                           model_performance, anomaly
+
+   Colour meaning (same on every page):
+     gold  = brand, headings, selected items      blue = primary buttons, comparison lines
+     green = low / quiet / resolved / all clear   amber = medium
+     red   = high / peak / active alert           sky  = flooded road
+   ================================================================ */
+
+
+/* ---------- Font: Plus Jakarta Sans, stored in the project (static/fonts/) ----------
+   Served by Streamlit at /app/static/... (enableStaticServing in .streamlit/config.toml),
+   so the font works offline too, e.g. during the viva without internet. */
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:400;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-400.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:500;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-500.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:600;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-600.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:700;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-700.woff2') format('woff2');}
+@font-face {font-family:'Plus Jakarta Sans';font-style:normal;font-weight:800;font-display:swap;src:url('/app/static/fonts/PlusJakartaSans-800.woff2') format('woff2');}
+
+/* ---------- Public pages (Home, Sign In, Traffic Dashboard): no sidebar, header or toolbar ----------
+   setup_public_page() in utils/ui.py adds the .ct-public-page marker; admin pages don't have it. */
+body:has(.ct-public-page) [data-testid="stSidebar"],
+body:has(.ct-public-page) [data-testid="stSidebarNav"],
+body:has(.ct-public-page) [data-testid="collapsedControl"],
+body:has(.ct-public-page) [data-testid="stHeader"],
+body:has(.ct-public-page) [data-testid="stToolbar"],
+body:has(.ct-public-page) [data-testid="stDecoration"],
+body:has(.ct-public-page) #MainMenu,
+body:has(.ct-public-page) footer {display:none !important;}
+
+:root {
+  /* navy surfaces */
+  --ct-bg:#0b1220; --ct-surface:#132036; --ct-border:#263c58;
+  --ct-card:linear-gradient(150deg,#14263f 0%,#111d31 100%);
+  /* gold brand */
+  --ct-gold:#f5bd57; --ct-gold-bright:#fcd34d;
+  --ct-gold-gradient:linear-gradient(110deg,#fde68a 0%,#f5bd57 55%,#d97706 100%);
+  /* text */
+  --ct-text:#f9fafb; --ct-muted:#b3c0d3;
+  /* actions + status */
+  --ct-blue:#3b82f6; --ct-blue-hover:#2563eb;
+  --ct-green:#55dca4; --ct-amber:#e5b54c; --ct-red:#f17b83; --ct-sky:#38bdf8;
+  --ct-font:'Plus Jakarta Sans',sans-serif;
+}
+
+/* ---------- Font, background, spacing ---------- */
+html, body, .stApp, .stApp *, [data-baseweb] {font-family:var(--ct-font) !important;}
+html {scroll-behavior:smooth;}
+/* Same background on every page: navy with a soft blue glow */
+.stApp {background:radial-gradient(900px 520px at 50% 32%,rgba(59,130,246,.11),transparent 62%),var(--ct-bg);color:#eef4ff;}
+.block-container {padding-top:1.4rem !important;padding-bottom:2rem !important;max-width:1250px !important;}
+/* Keep Streamlit's icon font so icons don't show as text */
+[data-testid="stIconMaterial"] {font-family:"Material Symbols Rounded" !important;}
+
+/* ---------- Entrance animation keyframes (used by every page) ---------- */
+@keyframes ct-up {from {opacity:0;transform:translateY(18px);}}
+@keyframes ct-pop {from {opacity:0;transform:scale(.92);}}
+@keyframes ct-fade {from {opacity:0;}}
+@keyframes ct-grow {from {transform:scaleX(0);}}   /* bars and meters filling from the left */
+
+/* ---------- Primary action buttons: solid blue, white text (Explore, Sign In, Analyze) ---------- */
+.st-key-explore button,
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button,
+.st-key-anomaly_analyze button {
+  border-radius:12px !important;border:none !important;
+  background:var(--ct-blue) !important;background-image:none !important;color:#ffffff !important;font-weight:700 !important;
+  box-shadow:0 8px 20px rgba(59,130,246,.25);
+  transition:background .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+.st-key-explore button p,
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button p,
+.st-key-anomaly_analyze button p {color:#ffffff !important;font-weight:700 !important;}
+.st-key-explore button:hover,
+[data-testid="stForm"] [data-testid="stFormSubmitButton"] button:hover,
+.st-key-anomaly_analyze button:hover:not(:disabled) {
+  background:var(--ct-blue-hover) !important;transform:translateY(-2px);box-shadow:0 12px 26px rgba(37,99,235,.35);
+}
+.st-key-anomaly_analyze button:disabled {background:var(--ct-blue) !important;opacity:.35;box-shadow:none;transform:none;}
+
+/* ---------- Divider, footer, section headings ---------- */
+.ct-divider {height:1px;background:linear-gradient(90deg,transparent,#f5bd57 45%,#3b82f6 70%,transparent);margin:1.7rem 0;}
+.ct-footnote {text-align:center;color:#8498b2;font-size:.8rem;padding-bottom:.5rem;}
+.ct-section {font-size:1.3rem;font-weight:750;margin:1.4rem 0 .75rem;color:#F9FAFB;}
+/* Panel heading row: title left, small note right */
+.ct-head {display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:14px;}
+.ct-head .ct-section {margin:0;}
+.ct-head-note {color:#9cb8d4;font-size:.85rem;}
+
+/* ---------- Red pill buttons: Sign In, Back to Home, Log Out ---------- */
+.st-key-signin button,.st-key-back_home button,.st-key-forecast_back_home button,.st-key-admin_top_logout button {
+  border-radius:999px !important;
+  background:#7f2837 !important;
+  border:1px solid #b74a5b !important;
+  color:#fff5f5 !important;
+  font-weight:700 !important;
+  min-height:2.5rem;
+  white-space:nowrap;
+  box-shadow:0 5px 18px rgba(127,40,55,.15);
+  transition:background .2s ease,border-color .2s ease,transform .2s ease,box-shadow .2s ease;
+}
+/* Home's Sign In fills its column; the others size to their text */
+.st-key-back_home button,.st-key-forecast_back_home button,.st-key-admin_top_logout button {width:auto !important;padding:.45rem 1.3rem !important;}
+.st-key-signin button:hover,.st-key-back_home button:hover,.st-key-forecast_back_home button:hover,.st-key-admin_top_logout button:hover {
+  background:#a33749 !important;
+  border-color:#ed8290 !important;
+  color:#fff5f5 !important;
+  transform:translateY(-2px);
+  box-shadow:0 9px 22px rgba(163,55,73,.26);
+}
+.st-key-signin button:focus-visible,.st-key-back_home button:focus-visible,
+.st-key-forecast_back_home button:focus-visible,.st-key-admin_top_logout button:focus-visible {outline:2px solid #f1a7b1 !important;outline-offset:3px;}
+
+/* ---------- Date / time pill (page headers) ---------- */
+.ct-clock-wrap {display:flex;justify-content:flex-end;}
+.ct-clock {display:inline-flex;align-items:center;gap:.8rem;padding:.6rem 1.15rem;border-radius:999px;background:#132036;border:1px solid #263c58;color:#dbe7f7;font-size:1.02rem;font-weight:650;white-space:nowrap;}
+.ct-clock-sep {width:1px;height:1.1rem;background:#34506f;}
+
+/* ---------- Overview rows: coloured dot + label + value ---------- */
+.ct-ov {display:flex;flex-direction:column;gap:.45rem;margin-top:.6rem;}
+.ct-ov-row {display:flex;align-items:center;gap:.65rem;min-width:0;}
+.ct-ov-dot {flex:0 0 9px;height:9px;border-radius:50%;}
+.ct-ov-dot.dataset {background:#fde68a;box-shadow:0 0 8px rgba(253,230,138,.55);}
+.ct-ov-dot.location {background:#f5bd57;box-shadow:0 0 8px rgba(245,189,87,.6);}
+.ct-ov-dot.direction {background:#d97706;box-shadow:0 0 8px rgba(217,119,6,.6);}
+.ct-ov-key {flex:0 0 74px;font-size:.64rem;letter-spacing:.12em;font-weight:750;color:#6f86a6;}
+.ct-ov-val {font-size:1.02rem;font-weight:750;color:#eef4ff;line-height:1.3;overflow-wrap:anywhere;}
+
+/* ---------- Selectboxes ---------- */
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {border-radius:12px;background:#132036;border-color:#263c58;transition:border-color .2s ease;}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {border-color:#f5bd57;}
+/* Open list: a fixed 480px wide (wider than the box) so long road names show in full */
+[data-testid="stSelectboxVirtualDropdown"] {width:min(480px,92vw) !important;min-width:min(480px,92vw) !important;max-width:92vw !important;}
+[data-testid="stSelectboxVirtualDropdown"] [role="listbox"] {width:100% !important;background:#132036 !important;}
+[data-testid="stSelectboxVirtualDropdown"] [role="option"] {width:100% !important;}
+[data-testid="stSelectboxVirtualDropdown"] [role="option"] * {overflow:visible !important;text-overflow:clip !important;white-space:nowrap !important;}
+[data-testid="stSelectboxVirtualDropdown"] [role="option"]:hover,
+[data-testid="stSelectboxVirtualDropdown"] [aria-selected="true"] {background:rgba(245,189,87,.1) !important;}
+
+/* ---------- Accessibility ---------- */
+@media (max-width:640px) {
+  .ct-clock {font-size:.9rem;}
+}
+@media (prefers-reduced-motion:reduce) {
+  .st-key-signin button,.st-key-back_home button,.st-key-forecast_back_home button,.st-key-admin_top_logout button {transition:none !important;}
+  .st-key-signin button:hover,.st-key-back_home button:hover,.st-key-forecast_back_home button:hover,.st-key-admin_top_logout button:hover {transform:none !important;}
+  .st-key-explore button,[data-testid="stForm"] [data-testid="stFormSubmitButton"] button,.st-key-anomaly_analyze button {transition:none !important;transform:none !important;}
+}

@@ -1,0 +1,65 @@
+/* ================================================================
+   Chronos-Traffic public forecast page (page-specific parts only).
+   Background, red pill button, date/time pill, overview dots and selectboxes
+   are in main.css; the 6-hour panel, week outlook and map in forecast_panels.css.
+   ================================================================ */
+
+/* ---------- Page chrome (sidebar and toolbar are hidden by main.css on public pages) ---------- */
+.block-container {padding-top:4rem !important;}
+
+/* ---------- Header ---------- */
+.ct-title {
+  font-size:clamp(2rem,4vw,3.1rem);font-weight:850;letter-spacing:-.045em;margin:0;line-height:1.12;
+  background:var(--ct-gold-gradient);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.ct-subtitle {color:#9BAEC9;margin:.2rem 0 0;}
+/* Back to Home pill (style in main.css), right-aligned */
+.st-key-forecast_back_home {margin-left:auto;display:flex;justify-content:flex-end;margin-bottom:.7rem;}
+
+/* ---------- Selected route: larger than the admin overview rows ---------- */
+.ct-route-label {font-size:.7rem;letter-spacing:.16em;font-weight:750;color:#f5bd57;margin:.4rem 0 .2rem;}
+.ct-route .ct-ov {gap:.55rem;margin:.6rem 0 .9rem;}
+.ct-route .ct-ov-row {gap:.75rem;}
+.ct-route .ct-ov-dot {flex-basis:10px;height:10px;}
+.ct-route .ct-ov-key {flex-basis:92px;font-size:.68rem;}
+.ct-route .ct-ov-val {font-weight:780;color:#F9FAFB;line-height:1.2;letter-spacing:-.02em;}
+.ct-route .ct-ov-val.location {font-size:clamp(1.15rem,2.1vw,1.6rem);}
+.ct-route .ct-ov-val.direction {font-size:clamp(1.05rem,1.6vw,1.3rem);color:#f5bd57;}
+.ct-forecast-date {font-size:.95rem;color:#9BAEC9;}
+.ct-forecast-date strong {color:#F9FAFB;}
+/* Shown when the current time has no forecast and the nearest time was picked instead */
+.ct-snap-note {margin-top:.45rem;font-size:.8rem;color:#f2ca76;line-height:1.45;max-width:560px;}
+
+/* ---------- Dataset + selectors ---------- */
+.ct-dataset {color:#9BAEC9;font-size:1.08rem;margin:0 0 .55rem;}
+.ct-dataset strong {color:#f5bd57;font-weight:780;font-size:1.2rem;}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {min-height:40px;}
+
+@media (max-width:780px) {
+  .ct-dataset-right {margin-top:.6rem;}
+}
+
+/* ---------- Entrance animations ---------- */
+.ct-title,.ct-subtitle,.st-key-forecast_back_home,.ct-clock-wrap,
+.ct-route-label,.ct-ov-row,.ct-forecast-date,.ct-snap-note,
+.ct-dataset-right,[class*="st-key-forecast_location"],[class*="st-key-forecast_direction"] {
+  animation:ct-up .6s cubic-bezier(.22,.61,.36,1) backwards;
+}
+.ct-subtitle {animation-delay:.08s;}
+.st-key-forecast_back_home {animation-name:ct-fade;animation-delay:.1s;}
+.ct-clock-wrap {animation-delay:.16s;}
+.ct-route-label {animation-delay:.12s;}
+.ct-ov-row:nth-child(1) {animation-delay:.18s;}
+.ct-ov-row:nth-child(2) {animation-delay:.24s;}
+.ct-forecast-date {animation-delay:.3s;}
+.ct-snap-note {animation-delay:.34s;}
+.ct-dataset-right {animation-delay:.16s;}
+[class*="st-key-forecast_location"] {animation-delay:.22s;}
+[class*="st-key-forecast_direction"] {animation-delay:.28s;}
+
+@media (prefers-reduced-motion:reduce) {
+  .ct-title,.ct-subtitle,.st-key-forecast_back_home,.ct-clock-wrap,
+  .ct-route-label,.ct-ov-row,.ct-forecast-date,
+  .ct-dataset-right,[class*="st-key-forecast_location"],[class*="st-key-forecast_direction"] {animation:none !important;}
+}

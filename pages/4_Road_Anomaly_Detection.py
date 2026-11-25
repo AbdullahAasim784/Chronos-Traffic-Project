@@ -1,469 +1,449 @@
-import streamlit as st
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-import plotly.express as px
-from PIL import Image
-import os
+"""Road Anomaly Detection (admin): pick a camera image or video and classify it with the CNN."""
+import base64
+import sqlite3
+import tempfile
+from html import escape
+from pathlib import Path
 
-# Page Settings
-st.set_page_config(
-    page_title="Road Anomaly Detection",
-    page_icon="🚨",
-    layout="wide"
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+
+from utils.admin_ui import admin_header, setup_admin_page
+from utils.anomaly_model import (
+    CLASS_NAMES_PATH, CONFIDENCE_THRESHOLD, IMAGE_TYPES, MODEL_METRICS, MODEL_PATH, SAMPLE_FPS,
+    SUSTAINED_SHARE, VIDEO_TYPES, analyse_video, camera_info, media_kind, predict_image, style,
+)
+from utils.anomaly_store import alerts_on_day, camera_list, resolve_user_id, save_detection
+from utils.config import CAMERA_DIR, CHART_TEXT, GOLD, ROOT, SURFACE, now_karachi
+from utils.ui import divider, footer
+
+# Admin page: same setup, login check and sidebar as the other admin pages.
+PAGE_TITLE = "Road Anomaly Detection"
+setup_admin_page(PAGE_TITLE, "🚨", "anomaly.css")
+
+# Arriving from another page: start empty (no old image, result or error).
+if st.session_state.get("ct_previous_page") != PAGE_TITLE:
+    for _key in ("anomaly_file", "anomaly_result", "anomaly_error", "anomaly_upload_name"):
+        st.session_state.pop(_key, None)
+
+def pick_file():
+    """Native Windows file dialog that opens straight in the Camera folder.
+    Works when Streamlit runs on this PC (your demo). Raises if there is no desktop."""
+    import tkinter as tk
+    from tkinter import filedialog
+
+    root = tk.Tk()
+    root.withdraw()
+    root.wm_attributes("-topmost", 1)   # dialog appears in front of the browser
+    try:
+        path = filedialog.askopenfilename(
+            parent=root,
+            title="Choose a camera image or video",
+            initialdir=str(CAMERA_DIR if CAMERA_DIR.is_dir() else ROOT),
+            filetypes=[
+                ("Images and videos", " ".join("*" + t for t in IMAGE_TYPES + VIDEO_TYPES)),
+                ("Images", " ".join("*" + t for t in IMAGE_TYPES)),
+                ("Videos", " ".join("*" + t for t in VIDEO_TYPES)),
+            ],
+        )
+    finally:
+        root.destroy()
+    return path or None
+
+
+def set_file(path):
+    st.session_state["anomaly_file"] = path
+    st.session_state.pop("anomaly_result", None)
+    st.session_state.pop("anomaly_error", None)
+
+
+def clear_file():
+    """Red X button: forget the selected file and its result."""
+    for key in ("anomaly_file", "anomaly_result", "anomaly_error", "anomaly_upload_name"):
+        st.session_state.pop(key, None)
+    # A new key gives the fallback upload box a fresh, empty state.
+    st.session_state["anomaly_upload_n"] = st.session_state.get("anomaly_upload_n", 0) + 1
+
+
+def choose_file():
+    """Choose button callback: runs before the page redraws, so the preview updates at once."""
+    try:
+        path = pick_file()
+    except Exception:  # no desktop available (e.g. deployed online) -> show an upload box instead
+        st.session_state["picker_unavailable"] = True
+        return
+    if path:
+        set_file(path)
+
+
+def image_tag(path):
+    mime = "png" if Path(path).suffix.lower() == ".png" else "jpeg"
+    data = base64.b64encode(Path(path).read_bytes()).decode()
+    return f'<img class="ct-preview-img" src="data:image/{mime};base64,{data}" alt="Selected frame">'
+
+
+def camera_text(cam_id, cam_name):
+    return f"CAM {cam_id:03d} · {cam_name}" if cam_id is not None else "Uploaded file"
+
+
+# =================================================================
+# Header: same gold header, Log Out and date/time pill as the other admin pages
+# =================================================================
+admin_header("Road Anomaly Detection", "Classify camera footage for accidents and other road anomalies")
+
+
+# =================================================================
+# Workspace: preview (70%) on the left, controls (30%) on the right.
+# The right column is filled first so the preview already shows a newly uploaded file.
+# =================================================================
+with st.container(key="anomaly_workspace"):
+    st.markdown(
+        '<div class="ct-ws-head"><span class="ct-ws-kicker">◉ &nbsp; ANALYZE CAMERA FOOTAGE</span>'
+        '<span class="ct-ws-hint">4 Karachi road cameras</span></div>',
+        unsafe_allow_html=True,
+    )
+    preview_col, controls_col = st.columns([7, 3], gap="large", vertical_alignment="top")
+
+    with controls_col, st.container(key="anomaly_controls"):
+        st.button(
+            "📂  Choose Image / Video", key="anomaly_choose", use_container_width=True,
+            on_click=choose_file, help="Opens the Camera folder",
+        )
+
+        # Fallback when no desktop dialog is available: a normal upload box.
+        if st.session_state.get("picker_unavailable"):
+            uploaded = st.file_uploader(
+                "Upload a camera image or video", type=[t.strip(".") for t in IMAGE_TYPES + VIDEO_TYPES],
+                key=f"anomaly_upload_{st.session_state.get('anomaly_upload_n', 0)}",
+            )
+            if uploaded is not None and st.session_state.get("anomaly_upload_name") != uploaded.name:
+                temp_path = Path(tempfile.gettempdir()) / f"chronos_{uploaded.name}"
+                temp_path.write_bytes(uploaded.getvalue())
+                st.session_state["anomaly_upload_name"] = uploaded.name
+                set_file(str(temp_path))
+
+        file_path = st.session_state.get("anomaly_file")
+        if file_path and not Path(file_path).is_file():   # moved or deleted since it was chosen
+            file_path = None
+            st.session_state.pop("anomaly_file", None)
+
+        if file_path:
+            cam_id, cam_name = camera_info(file_path)
+            kind = media_kind(file_path)
+            st.markdown(
+                '<div class="ct-src-card">'
+                f'<div class="ct-src-badge">{"CAM " + format(cam_id, "03d") if cam_id is not None else "FILE"}</div>'
+                f'<div class="ct-src-place">{escape(cam_name or "Uploaded file")}</div>'
+                '<div class="ct-src-rows">'
+                f'<div><span>File</span><strong title="{escape(Path(file_path).name)}">{escape(Path(file_path).name)}</strong></div>'
+                f'<div><span>Type</span><strong>{"Video" if kind == "video" else "Image"}</strong></div>'
+                "</div></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div class="ct-src-card ct-src-empty">'
+                '<div class="ct-src-place">No file selected</div>'
+                '<div class="ct-src-note">Choose a frame or clip from one of the camera folders.</div>'
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+        analyze = st.button(
+            "🔍  Analyze", key="anomaly_analyze", type="primary",
+            use_container_width=True, disabled=not file_path,
+        )
+
+        model_ready = MODEL_PATH.is_file() and CLASS_NAMES_PATH.is_file()
+        st.markdown(
+            f'<div class="ct-model-chip {"ready" if model_ready else "missing"}"><span></span>'
+            f'{"CNN model ready" if model_ready else "Model or class_names.json missing"}</div>',
+            unsafe_allow_html=True,
+        )
+
+        if analyze and file_path:
+            st.session_state.pop("anomaly_error", None)
+            st.session_state.pop("anomaly_result", None)
+            if not model_ready:
+                st.session_state["anomaly_error"] = (
+                    f"Put {MODEL_PATH.name} and {CLASS_NAMES_PATH.name} in the Models folder.")
+            else:
+                is_video = media_kind(file_path) == "video"
+                try:
+                    with st.spinner("Analyzing video frames…" if is_video else "Analyzing image…"):
+                        result = (analyse_video(file_path, Path(file_path).stat().st_mtime) if is_video
+                                  else predict_image(file_path))
+                except ImportError:
+                    st.session_state["anomaly_error"] = "Video analysis needs OpenCV. Run: pip install opencv-python"
+                except Exception as exc:  # unreadable file, model/class mismatch, ...
+                    st.session_state["anomaly_error"] = f"Analysis failed: {exc}"
+                else:
+                    cam_id, cam_name = camera_info(file_path)
+                    result.update(file=Path(file_path).name, camera=camera_text(cam_id, cam_name),
+                                  time=now_karachi().strftime("%d %b · %I:%M %p"))
+                    # Store accident / flooded / uncertain results in anomaly_logs (Karachi time).
+                    try:
+                        result["log"] = save_detection(
+                            cam_id, result["label"], result["confidence"],
+                            resolve_user_id(st.session_state.get("user")),
+                        )
+                    except sqlite3.Error as exc:
+                        result["log"] = ("error", str(exc))
+                    st.session_state["anomaly_result"] = result
+
+    with preview_col:
+        with st.container(key="anomaly_preview"):
+            if file_path:
+                st.button("✕", key="anomaly_clear", help="Remove this file", on_click=clear_file)
+            if not file_path:
+                folder_note = ("Opens the <strong>Camera</strong> folder with all four road cameras."
+                               if CAMERA_DIR.is_dir() else
+                               "Create a <strong>Camera</strong> folder in the project with the four camera folders.")
+                st.markdown(
+                    '<div class="ct-preview-empty">'
+                    '<div class="ct-preview-icon">📷</div>'
+                    '<div class="ct-preview-title">No image or video selected</div>'
+                    f'<div class="ct-preview-text">Click <strong>Choose Image / Video</strong>. {folder_note}</div>'
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+            elif media_kind(file_path) == "video":
+                st.video(file_path)
+            else:
+                cam_id, cam_name = camera_info(file_path)
+                st.markdown(
+                    '<div class="ct-preview-wrap">' + image_tag(file_path) +
+                    f'<span class="ct-preview-chip">● {escape(camera_text(cam_id, cam_name))}</span></div>',
+                    unsafe_allow_html=True,
+                )
+
+if st.session_state.get("anomaly_error"):
+    st.warning(st.session_state["anomaly_error"])
+
+
+# =================================================================
+# Results: class label, confidence and chart
+# =================================================================
+def probability_layout(fig, height, title):
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=14, color="#cfdcec"), x=0),
+        height=height, margin=dict(l=10, r=40, t=40, b=10),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(255,255,255,0.025)",
+        font=dict(color=CHART_TEXT), hoverlabel=dict(bgcolor=SURFACE, bordercolor=GOLD),
+    )
+    return fig
+
+
+def bar_chart(values, highlight, title):
+    """Horizontal % bars per class, the highlighted one solid, with the 60% threshold line."""
+    names = list(values)
+    fig = go.Figure(go.Bar(
+        x=[values[n] for n in names], y=[style(n)["title"] for n in names], orientation="h",
+        marker=dict(color=[style(n)["color"] for n in names],
+                    opacity=[1 if n == highlight else 0.45 for n in names], line=dict(width=0)),
+        text=[f"{values[n]:.1f}%" for n in names], textposition="outside",
+        textfont=dict(color="#e6f1ff", size=13),
+        hovertemplate="%{y}: <b>%{x:.1f}%</b><extra></extra>",
+    ))
+    fig.add_vline(x=CONFIDENCE_THRESHOLD * 100, line=dict(color="rgba(148,163,184,.6)", dash="dash", width=1))
+    probability_layout(fig, 300, title).update_layout(
+        bargap=0.45, showlegend=False,
+        xaxis=dict(range=[0, 112], ticksuffix="%", tickvals=[0, 25, 50, 75, 100],
+                   gridcolor="rgba(148,163,184,.12)", fixedrange=True),
+        yaxis=dict(autorange="reversed", fixedrange=True),
+    )
+    return fig
+
+
+def log_note(log):
+    """Small line under the result: was it saved to the alerts log?"""
+    outcome, detail = log or (None, None)
+    if outcome == "saved":
+        return '<div class="ct-log-note saved">✓ Saved to today\'s anomaly alerts</div>'
+    if outcome == "duplicate":
+        when = pd.to_datetime(detail, errors="coerce")
+        when = when.strftime("%I:%M %p").lstrip("0") if pd.notna(when) else detail
+        return (f'<div class="ct-log-note">Already logged for this camera at {escape(str(when))} '
+                "· not saved again</div>")
+    if outcome == "not_logged":
+        return '<div class="ct-log-note">Normal traffic · not added to alerts</div>'
+    if outcome == "no_camera":
+        return '<div class="ct-log-note warn">Not saved · the file is not from a registered camera folder</div>'
+    if outcome == "error":
+        return f'<div class="ct-log-note warn">Could not save: {escape(str(detail))}</div>'
+    return ""
+
+
+def verdict_card(info, big, big_note, cells, bar=None):
+    grid = "".join(f"<div><span>{k}</span><strong>{escape(str(v))}</strong></div>" for k, v in cells)
+    track = f'<div class="ct-conf-track"><span style="width:{bar:.1f}%"></span></div>' if bar is not None else ""
+    return (
+        f'<div class="ct-verdict ct-verdict-{info["kind"]}">'
+        '<div class="ct-verdict-kicker">PREDICTED CLASS</div>'
+        f'<div class="ct-verdict-label">{info["icon"]} {info["title"]}</div>'
+        f'<div class="ct-verdict-conf"><span>{big}</span> {big_note}</div>{track}'
+        f'<div class="ct-verdict-grid">{grid}</div>'
+        f'<div class="ct-verdict-action"><span>Recommended action</span>{info["action"]}</div>'
+        "</div>"
+    )
+
+
+result = st.session_state.get("anomaly_result")
+if result:
+    info = style(result["label"])
+    divider()
+    with st.container(key="anomaly_result_panel"):
+        st.markdown(
+            '<div class="ct-ws-head"><span class="ct-ws-kicker">◉ &nbsp; ANALYSIS RESULT</span>'
+            f'<span class="ct-ws-hint">{escape(result["file"])}</span></div>',
+            unsafe_allow_html=True,
+        )
+        verdict_col, chart_col = st.columns([1, 1.25], gap="large", vertical_alignment="center")
+
+        cells = [("Traffic impact", info["impact"]), ("Camera", result["camera"]), ("Analyzed", result["time"])]
+        if result["label"] == "uncertain":
+            cells[0] = ("Top guess", f'{style(result["top"])["title"]} {result["confidence"]:.0f}%')
+        with verdict_col:
+            st.markdown(verdict_card(info, f'{result["confidence"]:.1f}%', "confidence", cells,
+                                     bar=result["confidence"]) + log_note(result.get("log")),
+                        unsafe_allow_html=True)
+        with chart_col, st.container(key="anomaly_chart_card"):
+            st.plotly_chart(bar_chart(result["probs"], result["top"], "Confidence by class"),
+                            use_container_width=True, config={"displayModeBar": False})
+
+
+# =================================================================
+# Anomaly history: every saved detection, one day at a time (read-only).
+# Today's alerts are resolved / dismissed from the Admin Dashboard.
+# A fragment: changing the filters only redraws this section.
+# =================================================================
+HISTORY_TYPES = {"accident": ("🚨 Accident", "accident"), "flooded": ("🌊 Flooded Road", "flooded"),
+                 "uncertain": ("❔ Uncertain", "uncertain")}
+STATUS_OPTIONS = ["Active", "Resolved", "Dismissed"]
+
+
+def history_table(rows):
+    """Same table design as the Model Performance validation records."""
+    times = pd.to_datetime(rows["detected_time"], errors="coerce")
+    body = []
+    for i, (r, t) in enumerate(zip(rows.itertuples(index=False), times), start=1):
+        kind = str(r.anomaly_type).lower()
+        label, cls = HISTORY_TYPES.get(kind, (str(r.anomaly_type).title(), "other"))
+        conf = 0.0 if pd.isna(r.confidence_score) else float(r.confidence_score) * 100
+        status = str(r.status).lower()
+        body.append(
+            f'<tr style="--i:{min(i, 12)}"><td>{i}</td>'
+            f'<td>{t.strftime("%I:%M %p").lstrip("0") if pd.notna(t) else "—"}</td>'
+            f"<td>{escape(str(r.camera_name))}</td>"
+            f'<td><span class="ct-hist-type {cls}">{escape(label)}</span></td>'
+            f'<td><div class="ct-tbar"><div class="ct-meter"><span style="width:{conf:.1f}%"></span></div>'
+            f"<b>{conf:.0f}%</b></div></td>"
+            f'<td><span class="ct-hist-status {escape(status)}">{escape(status.title())}</span></td></tr>'
+        )
+    return (
+        '<div class="ct-table-wrap ct-hist-table"><table class="ct-table"><thead><tr>'
+        "<th>NO.</th><th>TIME</th><th>LOCATION</th><th>ANOMALY</th><th>CONFIDENCE</th><th>STATUS</th>"
+        f"</tr></thead><tbody>{''.join(body)}</tbody></table></div>"
+    )
+
+
+@st.fragment
+def anomaly_history():
+    with st.container(key="anomaly_history"):
+        st.markdown(
+            '<div class="ct-ws-head"><span class="ct-ws-kicker">◉ &nbsp; ANOMALY HISTORY</span>'
+            '<span class="ct-ws-hint">Every saved detection · nothing is deleted</span></div>',
+            unsafe_allow_html=True,
+        )
+        today = now_karachi().date()
+        cameras = camera_list()
+        date_col, cam_col, status_col = st.columns([1, 1.2, 2], vertical_alignment="bottom")
+        with date_col:
+            day = st.date_input("Date", value=today, max_value=today, format="DD/MM/YYYY", key="hist_day")
+        with cam_col:
+            cam = st.selectbox("Camera", [None, *cameras], key="hist_cam",
+                               format_func=lambda i: "All cameras" if i is None else cameras[i])
+        with status_col:
+            status = st.segmented_control("Status", ["All", *STATUS_OPTIONS], default="All", key="res_hist_status")
+
+        rows = alerts_on_day(day, cam)
+        if rows is None:
+            st.info("Anomaly logging isn't set up yet. Run backend/update_anomaly_status.py once.")
+            return
+
+        counts = rows["status"].value_counts()
+        st.markdown(
+            '<div class="ct-hist-chips">'
+            f'<span><b>{len(rows)}</b> detection{"s" if len(rows) != 1 else ""}</span>'
+            f'<span class="active"><b>{counts.get("active", 0)}</b> active</span>'
+            f'<span class="resolved"><b>{counts.get("resolved", 0)}</b> resolved</span>'
+            f'<span class="dismissed"><b>{counts.get("dismissed", 0)}</b> dismissed</span>'
+            f'<span class="day">{day:%A, %d %B %Y}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+        if status and status != "All":
+            rows = rows[rows["status"] == status.lower()]
+        if rows.empty:
+            st.markdown('<div class="ct-hist-empty">No detections for this selection.</div>', unsafe_allow_html=True)
+            return
+        st.markdown(history_table(rows), unsafe_allow_html=True)
+
+
+divider()
+anomaly_history()
+
+
+# =================================================================
+# Model information: short summary left, stats and per-class results right
+# =================================================================
+m = MODEL_METRICS
+class_rows = "".join(
+    '<div class="ct-mi-row">'
+    f'<div class="ct-mi-name"><span class="ct-mi-dot" style="background:{style(name)["color"]}"></span>'
+    f'{style(name)["title"].replace(" Road", "").replace(" Traffic", "")}</div>'
+    f'<div class="ct-mi-num">{prec:.1f}%</div><div class="ct-mi-num">{rec:.1f}%</div>'
+    f'<div class="ct-mi-bar"><i style="width:{rec}%;background:{style(name)["color"]}"></i></div>'
+    "</div>"
+    for name, (prec, rec) in m["per_class"].items()
+)
+divider()
+st.markdown(
+    '<section class="ct-mi">'
+    '<div class="ct-ws-head"><span class="ct-ws-kicker">◉ &nbsp; MODEL INFORMATION</span>'
+    f'<span class="ct-ws-hint">Evaluated on {m["test_images"]} held-out test images</span></div>'
+    '<div class="ct-mi-layout">'
+
+    '<div class="ct-mi-summary">'
+    '<h3>Road scene classifier · <span>MobileNetV2</span></h3>'
+    "<p>A <strong>MobileNetV2</strong> network, pretrained on ImageNet and <strong>fine-tuned in two phases</strong> "
+    "on labelled road-scene frames taken from traffic videos. It reads a single image, or a video at "
+    f"{SAMPLE_FPS} frames per second, and classifies the scene as an <strong>accident</strong>, "
+    "a <strong>flooded road</strong> or <strong>normal traffic</strong>.</p>"
+    f"<p>Any prediction below <strong>{CONFIDENCE_THRESHOLD:.0%} confidence</strong> is shown as "
+    "<strong>Uncertain</strong> so an operator can check the footage. For videos, an anomaly is reported only "
+    f"if it appears in at least {SUSTAINED_SHARE:.0%} of the frames.</p>"
+    '<div class="ct-mi-facts"><span>224 × 224 RGB input</span><span>Split by source video</span>'
+    "<span>Class-weighted training</span></div>"
+    "</div>"
+
+    "<div>"
+    '<div class="ct-mi-cards">'
+    f'<div class="ct-mi-card"><span>Test accuracy</span><strong class="gold">{m["accuracy"]:.1f}%</strong>'
+    f'<small>{m["correct"]} of {m["test_images"]} correct</small></div>'
+    f'<div class="ct-mi-card"><span>Macro F1</span><strong class="gold">{m["macro_f1"]:.1f}%</strong>'
+    "<small>balanced across classes</small></div>"
+    f'<div class="ct-mi-card"><span>Classes</span><strong>{len(m["per_class"])}</strong>'
+    f'<small>{" · ".join(m["per_class"])}</small></div>'
+    "</div>"
+    '<div class="ct-mi-classes">'
+    '<div class="ct-mi-row ct-mi-headrow"><div>Class</div><div>Precision</div><div>Recall</div><div></div></div>'
+    f"{class_rows}</div>"
+    "</div>"
+
+    "</div></section>",
+    unsafe_allow_html=True,
 )
 
-# Load Trained Model
-def load_model():
-    return tf.keras.models.load_model("Models/chronos_traffic_model.keras")
-model = load_model()
-
-# Class Names
-CLASS_NAMES = {0: "✅ Normal Traffic",1: "🚨 Accident",2: "⚠️ Challenging Environment"}
-
-# Prediction Function
-def predict_image(img):
-    img = img.resize((224,224))
-    img_array = np.array(img)
-    img_array = img_array / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    prediction = model.predict(img_array, verbose=0)
-    predicted_class = np.argmax(prediction)
-    confidence = np.max(prediction) * 100
-    return predicted_class, confidence, prediction[0]
-
-# Header
-st.markdown("""
-    <h1 style="font-size:46px;font-weight:800;margin-bottom:0;">
-    🚨 Road Anomaly Detection
-    </h1>
-
-    <p style="color:#989b9c;font-size:20px;margin-top:6px; margin-left:75px;"> 
-    CNN-based Traffic Scene Classification for Smart Traffic Monitoring
-    </p>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-# Image Selection
-left, gap, right = st.columns([1,0.08,1.8])
-uploaded_image = None
-
-# Left: Image Source
-with left:
-    st.subheader("📂 Image Source")
-    image_option = st.radio("",["Upload Image", "Sample Dataset"],horizontal=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if image_option == "Upload Image":
-        uploaded_image = st.file_uploader(
-            "Upload Road Image",
-            type=["jpg","jpeg","png"],
-            label_visibility="collapsed"
-        )
-    else:
-        dataset_path = "Data/processed_frames (India)/Final_videos"
-
-        classes = sorted([
-            f for f in os.listdir(dataset_path)
-            if os.path.isdir(os.path.join(dataset_path,f))
-        ])
-
-        selected_class = st.selectbox("Class", classes)
-        class_path = os.path.join(dataset_path, selected_class)
-
-        videos = sorted([
-            f for f in os.listdir(class_path)
-            if os.path.isdir(os.path.join(class_path,f))
-        ])
-
-        selected_video = st.selectbox("Video Folder",videos)
-        video_path = os.path.join(class_path, selected_video)
-
-        images = sorted([
-            f for f in os.listdir(video_path)
-            if f.lower().endswith((".jpg",".jpeg",".png"))
-        ])
-
-        selected_image = st.selectbox("Frame",images)
-
-        img_path = os.path.join(video_path, selected_image)
-
-        uploaded_image = Image.open(img_path)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    c1,c2,c3 = st.columns([1,2,1])
-    with c2:
-        predict = st.button("🔍 Analyze Image",use_container_width=True)
-
-# Right: Image Preview
-with right:
-    st.subheader("🖼️ Image Preview")
-    preview = st.container(border=True)
-
-    with preview:
-        if uploaded_image is not None:
-            if image_option == "Upload Image":
-                display_img = Image.open(uploaded_image)
-            else:
-                display_img = uploaded_image
-            st.image(display_img,width=600)
-
-        else:
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            st.markdown("""
-                <h2 style="text-align:center;color:#94A3B8;">📷</h2>
-                <h4 style="text-align:center;color:#94A3B8;">No Image Selected</h4>
-
-                <p style="text-align:center;color:#64748B;font-size:16px;">
-                Upload an image or choose one from the sample dataset.
-                </p>
-            """,unsafe_allow_html=True)
-
-# Prediction Section
-if predict:
-    if uploaded_image is None:
-        st.warning("⚠️ Please upload or select an image first.")
-    else:
-        if image_option == "Upload Image":
-            img = Image.open(uploaded_image)
-        else:
-            img = uploaded_image
-
-        # Predict
-        predicted_class, confidence, probabilities = predict_image(img)
-
-        if predicted_class == 0:
-            impact = "🟢 LOW"
-            action = "No immediate action required."
-            border_color = "#22C55E"
-            title_color = "#BBF7D0"
-            value_color = "#4ADE80"
-            bg_color = "#163323"
-
-        elif predicted_class == 1:
-            impact = "🔴 HIGH"
-            action = "Emergency response recommended."
-            border_color = "#EF4444"
-            title_color = "#FECACA"
-            value_color = "#F87171"
-            bg_color = "#3A1A1A"
-
-        else:
-            impact = "🟠 MEDIUM"
-            action = "Monitor traffic and alert authorities."
-            border_color = "#F59E0B"
-            title_color = "#FDE68A"
-            value_color = "#FBBF24"
-            bg_color = "#563F1F"
-
-        left, divider, right = st.columns([1,0.03,1])
-
-        with left:
-            st.subheader("AI Prediction")
-            st.markdown(f"""
-                <div style="
-                background:{bg_color};
-                border:2px solid {border_color};
-                border-radius:18px;
-                padding:25px;">
-                    <div class="pred-value" style="color:{value_color};margin-bottom:22px; font-size:22px;">
-                        <b>{CLASS_NAMES[predicted_class]}</b>
-                    </div>
-                    <div class="pred-title" style="margin-top:20px;">
-                        Confidence 
-                    </div>
-                    <div class="pred-value" style="color:{value_color};margin-bottom:22px;">
-                        <b>{confidence:.2f}%</b>
-                    </div>
-                    <div class="pred-title" style="margin-top:20px;">
-                        Traffic Impact
-                    </div>
-                    <div class="pred-value" style="color:{value_color};margin-bottom:22px;">
-                        <b>{impact}</b>
-                    </div>
-                    <div class="pred-title" style="margin-top:20px;">
-                        Recommended Action 
-                    </div>
-                    <div style="color:{value_color};font-size:18px;line-height:1.7;margin-top:10px;"> 
-                        <b>{action}</b>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-        with divider:
-            st.markdown("""
-            <div style="
-                border-left:2px solid #334155;
-                height:435px;
-                margin:auto;">
-            </div>
-            """, unsafe_allow_html=True)
-
-        with right:
-            st.subheader("📊 Confidence Scores")
-
-            chart = pd.DataFrame({
-                "Class": ["Normal Traffic","Accident","Challenging"],
-                "Confidence": [probabilities[0] * 100, probabilities[1] * 100, probabilities[2] * 100]
-            })
-
-            fig = px.bar(
-                chart,
-                x="Confidence",
-                y="Class",
-                orientation="h",
-                text="Confidence",
-                color="Confidence",
-                color_continuous_scale="Blues"
-            )
-
-            fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
-
-            fig.update_layout(
-                height=360,
-                plot_bgcolor="#111827",
-                paper_bgcolor="#1F2937",
-                coloraxis_showscale=False,
-                margin=dict(l=20,r=20,t=20,b=20),
-                xaxis_title="Confidence (%)",
-                yaxis_title="",
-                xaxis_range=[0,100]
-            )
-
-            st.plotly_chart(fig, use_container_width=True)
-
-st.divider()
-
-# Model Information
-st.subheader("📋 Model Information")
-
-# Model Info Card CSS
-st.markdown("""
-<style>
-.anomaly-card{
-    display:flex;
-    justify-content:space-evenly;
-    align-items:center;
-    background:#1F2937;
-    border:1px solid #334155;
-    border-radius:20px;
-    padding:20px;
-}
-
-.anomaly-card:hover{
-    border-color:#3B82F6;
-    box-shadow:0 0 15px rgba(59,130,246,0.25);
-}
-
-.anomaly-item{
-    flex:1;
-    text-align:center;
-}
-
-.anomaly-title{
-    font-size:22px;
-    font-weight:700;
-    color:#F8FAFC;
-    margin-bottom:10px;
-}
-
-.anomaly-value{
-    font-size:28px;
-    font-weight:700;
-    color:#FACC15;
-}
-
-.anomaly-divider{
-    width:2px;
-    height:70px;
-    background:#475569;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# Model Info Card Class
-st.markdown("""
-<div class="anomaly-card">
-    <div class="anomaly-item">
-        <div class="anomaly-title">Model</div>
-        <div class="anomaly-value">CNN</div>
-    </div>
-    <div class="anomaly-divider"></div>
-    <div class="anomaly-item">
-        <div class="anomaly-title">Classes</div>
-        <div class="anomaly-value">3</div>
-    </div>
-    <div class="anomaly-divider"></div>
-    <div class="anomaly-item">
-        <div class="anomaly-title">Validation Accuracy</div>
-        <div class="anomaly-value">67%</div>
-    </div>
-    <div class="anomaly-divider"></div>
-    <div class="anomaly-item">
-        <div class="anomaly-title">Status</div>
-        <div class="anomaly-value">Prototype</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-# Dataset Information
-st.subheader("📂 Dataset Summary")
-c1, c2 = st.columns(2)
-
-# Dataset Classes
-with c1:
-    st.markdown("""
-        <div style="font-size:20px;color:#989b9c;">
-        <h3 style="color:white;"> Dataset Classes: </h3>
-        <li> ✅ Normal Traffic </li>
-        <li> 🚨 Accident </li>
-        <li> ⚠ Challenging Environment</li>
-        <p style="font-size:18px;">The CNN was trained using labeled traffic scene images extracted from videos.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-# Classification Goal
-with c2:
-    st.markdown("""
-        <div style="font-size:20px;color:#989b9c;">
-        <h3 style="color:white;"> Classification Goal: </h3>
-        <li> Normal Traffic </li>
-        <li> Accident </li>
-        <li> Challenging Environment</li>
-        <p style="font-size:18px;">This module demonstrates AI-assisted road anomaly detection within the Chronos-Traffic prototype.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-st.divider()
-
-# Notes
-st.subheader("📝 Model Notes")
-
-# CSS
-st.markdown("""
-<style>
-.notes-card{
-    background:#1F2937;
-    border:1px solid #334155;
-    border-radius:18px;
-    padding:28px;
-    transition:0.3s;
-}
-
-.notes-card:hover{
-    border-color:#3B82F6;
-    box-shadow:0 0 15px rgba(59,130,246,0.25);
-}
-
-.notes-title{
-    font-size:28px;
-    font-weight:700;
-    color:#F8FAFC;
-    margin-bottom:18px;
-}
-
-.notes-text{
-    color:#CBD5E1;
-    font-size:17px;
-    line-height:1.8;
-}
-
-.notes-subtitle{
-    color:#FACC15;
-    font-size:22px;
-    font-weight:700;
-    margin-top:22px;
-    margin-bottom:12px;
-}
-
-.notes-list{
-    color:#E2E8F0;
-    font-size:17px;
-    line-height:2;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# Notes Card
-st.markdown("""
-<div class="notes-card">
-
-<div class="notes-title">
-Model Overview
-</div>
-
-<div class="notes-text">
-This anomaly detection module is a proof-of-concept developed using an available labelled traffic dataset.
-The objective is to demonstrate the integration of AI-based road scene classification within the
-Chronos-Traffic Intelligent Transportation System dashboard.
-
-The current CNN model classifies road scenes into three categories:
-<b>Normal Traffic</b>, <b>Accident</b>, and <b>Challenging Environment</b>.
-Although designed as a prototype, it demonstrates the feasibility of integrating computer vision
-into real-time traffic monitoring.
-</div>
-
-<div class="notes-subtitle">
-🚀 Future Improvements
-</div>
-
-<div class="notes-list">
-• Larger and more diverse traffic datasets<br>
-• CNN + LSTM / Vision Transformer architectures<br>
-• Real-time CCTV and roadside camera integration<br>
-• Detection of flooding, road blockages, potholes, and construction zones<br>
-</div>
-
-</div>
-""", unsafe_allow_html=True)
-
-st.divider()
-
-st.caption("© 2026 Chronos-Traffic | Bahria University Karachi Campus | Final Year Project Prototype")
-
-# Sidebar
-with st.sidebar:
-    st.markdown("<br><br><br><br><br><br>", unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style=" text-align:center; color:#94A3B8; line-height:1.2;">
-
-    <div style="
-        font-size:18px;
-        color:white;
-        font-weight:700;
-        margin-top:10px;
-        margin-bottom:5px;">
-        🚦 Chronos-Traffic
-    </div>
-
-    <div style="font-size:14px; margin-bottom:10px;">
-        AI-Driven Spatio-Temporal <br>
-        Traffic Forecasting & Anomaly Detection
-    </div>
-
-    <div style="
-        display:inline-block;
-        background:#1F2937;
-        border:1px solid #334155;
-        border-radius:12px;
-        padding:8px 18px;
-        color:#60A5FA;
-        font-weight:600;
-        font-size:14px;
-        margin-bottom:10px;">
-        Version 1.0
-    </div>
-
-    <div style="font-size:13px;">
-        © 2026 Bahria University<br>
-        Computer Science Department
-    </div>
-
-    </div>
-    """, unsafe_allow_html=True)
+footer()
